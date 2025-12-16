@@ -1,0 +1,100 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+.python-version
+uv.lock
+
+# Virtual environments
+venv/
+ENV/
+env/
+.venv/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*.ipynb
+
+# Environment variables
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Julia temporary files
+_temp_julia/
+*.jl.*.cov
+*.jl.cov
+*.jl.mem
+deps/deps.jl
+
+# ChromaDB vector database
+.chroma_db/
+chroma.sqlite3
+
+# temporary files
+/tmp
+/draft
+
+# Output files
+outputs/
+*.png
+*.pdf
+*.svg
+*.log
+
+# Test files
+test*.py
+test*.ipynb
+test*.jl
+
+# Project-specific
+response.md
+test_inflation_sr/
+pack.py
+*.zip
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Linux
+*~
+.directory
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Claude Code
+CLAUDE.md
+.claude/

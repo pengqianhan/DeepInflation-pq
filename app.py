@@ -1,5 +1,5 @@
 """
-Gradio Web Interface for DeepInflation 
+Gradio Web Interface for DeepInflation
 
 Chat interface with streaming tool execution status using ChatMessage metadata.
 Supports custom API configuration (base_url, api_key, model).
@@ -7,14 +7,14 @@ Supports custom API configuration (base_url, api_key, model).
 
 import os
 import time
-from dotenv import load_dotenv
-
-# Load environment variables BEFORE importing agent
-load_dotenv()
 
 import gradio as gr
+from dotenv import load_dotenv
 from gradio import ChatMessage
+
 from agent import DeepInflation
+
+load_dotenv()
 
 
 def create_agent_interface():
@@ -38,7 +38,7 @@ def create_agent_interface():
                     base_url=base_url,
                     model=model,
                     embedding_model=embedding_model,
-                    verbose=True
+                    verbose=True,
                 )
             }
 
@@ -79,10 +79,7 @@ def create_agent_interface():
     async def respond(agent_state: dict, history: list):
         """Async streaming response handler using agent.stream()."""
         if agent_state.get("agent") is None:
-            history.append(ChatMessage(
-                role="assistant",
-                content="⚠️ Please initialize the agent first."
-            ))
+            history.append(ChatMessage(role="assistant", content="⚠️ Please initialize the agent first."))
             yield history, None
             return
 
@@ -119,7 +116,7 @@ def create_agent_interface():
                             "title": info.get("title", "🔧 Tool"),
                             "log": info.get("log", ""),
                             "status": "pending",
-                        }
+                        },
                     )
                     tool_indices[call_id] = (len(history), tool_name, args_text)
                     history.append(tool_msg)
@@ -136,11 +133,11 @@ def create_agent_interface():
                                 f"**Evolution**: {config['populations']} pops × {config['iterations']} iters\n"
                                 f"**Est. time**: {config['estimated_time']}"
                             )
-                            old_meta = getattr(history[idx], 'metadata', {}) or {}
+                            old_meta = getattr(history[idx], "metadata", {}) or {}
                             history[idx] = ChatMessage(
                                 role="assistant",
                                 content=config_text,
-                                metadata={**old_meta, "status": "pending"}
+                                metadata={**old_meta, "status": "pending"},
                             )
                             tool_indices[call_id] = (idx, tool_name, config_text)
                             yield history, None
@@ -150,7 +147,7 @@ def create_agent_interface():
                     call_id = event["call_id"]
                     if call_id in tool_indices:
                         idx, _, args_text = tool_indices[call_id]
-                        old_meta = getattr(history[idx], 'metadata', {}) or {}
+                        old_meta = getattr(history[idx], "metadata", {}) or {}
                         # Gradio status only accepts 'pending' or 'done'
                         # Indicate failure via title suffix
                         success = event.get("success", True)
@@ -165,7 +162,7 @@ def create_agent_interface():
                                 "title": title,
                                 "status": "done",
                                 "duration": round(event.get("duration", 0), 1),
-                            }
+                            },
                         )
                         yield history, None
 
@@ -190,10 +187,7 @@ def create_agent_interface():
                     yield history, event.get("plot_path")
 
         except Exception as e:
-            history.append(ChatMessage(
-                role="assistant",
-                content=f"❌ Error: {str(e)}"
-            ))
+            history.append(ChatMessage(role="assistant", content=f"❌ Error: {str(e)}"))
             yield history, None
 
     def clear_conversation(agent_state: dict):
@@ -209,14 +203,16 @@ def create_agent_interface():
         gr.Markdown("# DeepInflation")
         gr.Markdown("AI assistant for analyzing inflation cosmology models.")
 
-        welcome = [{
-            "role": "assistant",
-            "content": """Welcome! I can help you explore inflation cosmology.
+        welcome = [
+            {
+                "role": "assistant",
+                "content": """Welcome! I can help you explore inflation cosmology.
 
 Ask about specific potentials, observational constraints, or let me search for models.
 
-*Configure API settings on the right to start.*"""
-        }]
+*Configure API settings on the right to start.*""",
+            }
+        ]
 
         with gr.Row():
             # Chat column
@@ -230,8 +226,8 @@ Ask about specific potentials, observational constraints, or let me search for m
                         {"left": "$$", "right": "$$", "display": True},
                         {"left": "\\[", "right": "\\]", "display": True},
                         {"left": "$", "right": "$", "display": False},
-                        {"left": "\\(", "right": "\\)", "display": False}
-                    ]
+                        {"left": "\\(", "right": "\\)", "display": False},
+                    ],
                 )
 
                 with gr.Row():
@@ -240,7 +236,7 @@ Ask about specific potentials, observational constraints, or let me search for m
                         show_label=False,
                         lines=1,
                         max_lines=3,
-                        scale=5
+                        scale=5,
                     )
                     submit_btn = gr.Button("Send", variant="primary", scale=1)
                     clear_btn = gr.Button("Clear", variant="secondary", scale=1)
@@ -252,7 +248,7 @@ Ask about specific potentials, observational constraints, or let me search for m
                         "Find a plateau potential with r < 0.01",
                     ],
                     inputs=msg_input,
-                    label="📝 Examples"
+                    label="📝 Examples",
                 )
 
             # Config column
@@ -262,22 +258,18 @@ Ask about specific potentials, observational constraints, or let me search for m
                         label="API Key",
                         placeholder="Leave empty for env var",
                         type="password",
-                        value=""
+                        value="",
                     )
-                    model_input = gr.Textbox(
-                        label="Model",
-                        placeholder="gpt-5.2",
-                        value="gpt-5.2"
-                    )
+                    model_input = gr.Textbox(label="Model", placeholder="gpt-5.2", value="gpt-5.2")
                     embedding_model_input = gr.Textbox(
                         label="Embedding Model",
                         placeholder="text-embedding-3-small",
-                        value="text-embedding-3-small"
+                        value="text-embedding-3-small",
                     )
                     base_url_input = gr.Textbox(
                         label="Base URL (Optional)",
                         placeholder="Custom endpoint",
-                        value=""
+                        value="",
                     )
                     init_btn = gr.Button("Initialize", variant="primary", size="sm")
                     status_output = gr.Textbox(
@@ -285,7 +277,7 @@ Ask about specific potentials, observational constraints, or let me search for m
                         interactive=False,
                         lines=3,
                         show_label=False,
-                        placeholder="Click Initialize"
+                        placeholder="Click Initialize",
                     )
 
                 gr.Markdown("""
@@ -303,42 +295,40 @@ Ask about specific potentials, observational constraints, or let me search for m
             type="filepath",
             interactive=False,
             height=380,
-            buttons=["download"]
+            buttons=["download"],
         )
 
         # Event handlers
         init_btn.click(
             initialize_agent,
-            inputs=[agent_state, api_key_input, base_url_input, model_input, embedding_model_input],
-            outputs=[agent_state, status_output, chatbot, plot_output]
+            inputs=[
+                agent_state,
+                api_key_input,
+                base_url_input,
+                model_input,
+                embedding_model_input,
+            ],
+            outputs=[agent_state, status_output, chatbot, plot_output],
         )
 
         clear_btn.click(
             clear_conversation,
             inputs=[agent_state],
-            outputs=[agent_state, chatbot, plot_output]
+            outputs=[agent_state, chatbot, plot_output],
         ).then(lambda: "", outputs=[msg_input])
 
         # Submit handlers - display user message, then stream response
         msg_input.submit(
             display_user_message,
             inputs=[msg_input, chatbot],
-            outputs=[msg_input, chatbot, plot_output]
-        ).then(
-            respond,
-            inputs=[agent_state, chatbot],
-            outputs=[chatbot, plot_output]
-        )
+            outputs=[msg_input, chatbot, plot_output],
+        ).then(respond, inputs=[agent_state, chatbot], outputs=[chatbot, plot_output])
 
         submit_btn.click(
             display_user_message,
             inputs=[msg_input, chatbot],
-            outputs=[msg_input, chatbot, plot_output]
-        ).then(
-            respond,
-            inputs=[agent_state, chatbot],
-            outputs=[chatbot, plot_output]
-        )
+            outputs=[msg_input, chatbot, plot_output],
+        ).then(respond, inputs=[agent_state, chatbot], outputs=[chatbot, plot_output])
 
     return interface
 
@@ -354,5 +344,5 @@ if __name__ == "__main__":
         server_port=7860,
         share=False,
         show_error=True,
-        theme=gr.themes.Soft()
+        theme=gr.themes.Soft(),
     )

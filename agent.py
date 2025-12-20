@@ -3,7 +3,6 @@
 import json
 import os
 import time
-from typing import Optional
 from uuid import uuid4
 
 from agno.agent import Agent
@@ -14,9 +13,8 @@ from agno.run.team import TeamRunEvent
 from agno.team import Team
 
 from encyclopedia_rag import EncyclopediaRAG
-from tools import analyze_potential, plot_potential
 from sr_search import search_potential
-
+from tools import analyze_potential, plot_potential
 
 # ============================================================================
 # System Prompts
@@ -219,6 +217,7 @@ def _extract_sr_config(config_json_str: str) -> dict:
 # DeepInflation Agent
 # ============================================================================
 
+
 class DeepInflation:
     """Inflation cosmology research agent with conversation management.
 
@@ -227,8 +226,8 @@ class DeepInflation:
 
     def __init__(
         self,
-        api_key: Optional[str] = None,
-        base_url: Optional[str] = None,
+        api_key: str | None = None,
+        base_url: str | None = None,
         model: str = "gpt-5.2",
         embedding_model: str = "text-embedding-3-small",
         temperature: float = 1.0,
@@ -249,7 +248,7 @@ class DeepInflation:
         self._rag = EncyclopediaRAG(
             api_key=self._api_key,
             base_url=self._base_url,
-            embedding_model=embedding_model
+            embedding_model=embedding_model,
         )
         self._db = SqliteDb(
             db_file="tmp/agent_storage.db",
@@ -259,6 +258,7 @@ class DeepInflation:
         # Set verbose flag for submodules
         import encyclopedia_rag
         import tools as tools_module
+
         tools_module.VERBOSE = encyclopedia_rag.VERBOSE = verbose
 
         if verbose:
@@ -266,7 +266,7 @@ class DeepInflation:
 
         # Session state
         self.session_id = str(uuid4())
-        self.last_plot_path: Optional[str] = None
+        self.last_plot_path: str | None = None
         self.team = self._create_team()
 
     def _create_team(self) -> Team:
@@ -331,7 +331,12 @@ class DeepInflation:
                     info = _format_tool_info(tool_name, tool_args)
                     call_id = f"{'member' if is_member else 'team'}_{tool_name}_{time.time()}"
                     pending_tools[call_id] = (tool_name, info, tool_args, time.time())
-                    yield {"type": "tool_start", "call_id": call_id, "info": info, "args": tool_args}
+                    yield {
+                        "type": "tool_start",
+                        "call_id": call_id,
+                        "info": info,
+                        "args": tool_args,
+                    }
 
                     # SR config display (member only)
                     if is_member and tool_name == "search_potential":
@@ -340,7 +345,10 @@ class DeepInflation:
                             yield {"type": "sr_config", "config": sr_config}
 
                 # Tool call completed (Team or Member)
-                elif event.event in (TeamRunEvent.tool_call_completed, RunEvent.tool_call_completed):
+                elif event.event in (
+                    TeamRunEvent.tool_call_completed,
+                    RunEvent.tool_call_completed,
+                ):
                     tool_name = event.tool.tool_name
                     result = event.tool.result
                     is_member = event.event == RunEvent.tool_call_completed
@@ -355,7 +363,10 @@ class DeepInflation:
                         output = None
 
                     # Find and pop matching pending tool
-                    call_id = next((cid for cid, (name, *_) in pending_tools.items() if name == tool_name), None)
+                    call_id = next(
+                        (cid for cid, (name, *_) in pending_tools.items() if name == tool_name),
+                        None,
+                    )
                     if call_id:
                         _, _, _, start_time = pending_tools.pop(call_id)
                         duration = time.time() - start_time
@@ -363,9 +374,16 @@ class DeepInflation:
                         if self.verbose:
                             prefix = "[Member Tool]" if is_member else "[Tool]"
                             output_str = str(result)[:500] if result else ""
-                            print(f"{prefix} {tool_name} {'✓' if success else '✗'} ({duration:.1f}s)\n  Output: {output_str}{'...' if len(str(result)) > 500 else ''}")
+                            print(
+                                f"{prefix} {tool_name} {'✓' if success else '✗'} ({duration:.1f}s)\n  Output: {output_str}{'...' if len(str(result)) > 500 else ''}"
+                            )
 
-                        yield {"type": "tool_end", "call_id": call_id, "duration": duration, "success": success}
+                        yield {
+                            "type": "tool_end",
+                            "call_id": call_id,
+                            "duration": duration,
+                            "success": success,
+                        }
 
                         # Extract plot path on success
                         if tool_name == "plot_potential" and isinstance(output, dict) and output.get("success"):
@@ -379,12 +397,17 @@ class DeepInflation:
                         accumulated_text += event.content
                         yield {"type": "text_delta", "delta": event.content}
 
-            yield {"type": "response", "content": accumulated_text, "plot_path": self.last_plot_path}
+            yield {
+                "type": "response",
+                "content": accumulated_text,
+                "plot_path": self.last_plot_path,
+            }
 
         except Exception as e:
             if self.verbose:
                 print(f"[Agent] Error: {e}")
                 import traceback
+
                 traceback.print_exc()
             yield {"type": "response", "content": f"Error: {e}", "plot_path": None}
 
@@ -414,7 +437,9 @@ class DeepInflation:
 
 if __name__ == "__main__":
     import asyncio
+
     from dotenv import load_dotenv
+
     load_dotenv()
 
     print("=" * 60)
@@ -455,8 +480,10 @@ if __name__ == "__main__":
                         print(f"  {title} {log}..." if log else f"  {title}...")
                     elif event["type"] == "sr_config":
                         config = event["config"]
-                        print(f"    Config: ns={config.get('ns_target')}±{config.get('ns_sigma')}, "
-                              f"r={config.get('r_target')}±{config.get('r_sigma')}")
+                        print(
+                            f"    Config: ns={config.get('ns_target')}±{config.get('ns_sigma')}, "
+                            f"r={config.get('r_target')}±{config.get('r_sigma')}"
+                        )
                         print(f"    Ops: {config.get('operators')}")
                         print(f"    Est: {config.get('estimated_time')}")
                     elif event["type"] == "tool_end":
@@ -478,4 +505,5 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"✗ Failed to initialize: {e}")
         import sys
+
         sys.exit(1)

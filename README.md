@@ -16,7 +16,7 @@ uv sync
 
 ### 2. Julia
 
-Install Julia first: https://julialang.org/downloads/
+Install Julia first: <https://julialang.org/downloads/>
 
 ```bash
 # Initialize Julia packages (~3-5 min first time)

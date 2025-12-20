@@ -212,10 +212,12 @@ end
 # Worker Function (runs in isolated process)
 # =============================================================================
 
+
 def _run_pysr(config: dict) -> dict:
     """Execute PySR in worker process. Returns result dict."""
 
     from pysr import PySRRegressor, jl
+
     from inflation import compute_observables_all_trajectories
 
     # Extract config
@@ -245,8 +247,11 @@ def _run_pysr(config: dict) -> dict:
 
     # Load Julia module
     julia_code = JULIA_MODULE.format(
-        ns_target=ns_target, ns_sigma=ns_sigma,
-        r_target=r_target, r_sigma=r_sigma, N_obs=N_obs
+        ns_target=ns_target,
+        ns_sigma=ns_sigma,
+        r_target=r_target,
+        r_sigma=r_sigma,
+        N_obs=N_obs,
     )
     jl.seval(julia_code)
     print("[SR] Julia module loaded")
@@ -285,33 +290,37 @@ def _run_pysr(config: dict) -> dict:
 
     # Verify and collect results
     print("[SR] Verifying candidates...")
-    equations = model.equations_.sort_values('score', ascending=False)
+    equations = model.equations_.sort_values("score", ascending=False)
     results = []
 
     for i in range(min(20, len(equations))):
         eq = equations.iloc[i]
-        expr = str(eq['equation'])
+        expr = str(eq["equation"])
         try:
             obs_list = compute_observables_all_trajectories(expr, N=N_obs)
             if not obs_list:
                 continue
             obs = obs_list[0]
-            chi2 = ((obs['ns'] - ns_target) / ns_sigma)**2 + ((obs['r'] - r_target) / r_sigma)**2
+            chi2 = ((obs["ns"] - ns_target) / ns_sigma) ** 2 + (
+                (obs["r"] - r_target) / r_sigma
+            ) ** 2
             loss = chi2 / 2
             if loss <= 10.0:
-                results.append({
-                    "rank": len(results) + 1,
-                    "expression": expr,
-                    "score": float(eq['score']),
-                    "loss": round(loss, 4),
-                    "ns": round(obs['ns'], 5),
-                    "r": round(obs['r'], 5),
-                    "N": N_obs,
-                    "complexity": int(eq['complexity'])
-                })
+                results.append(
+                    {
+                        "rank": len(results) + 1,
+                        "expression": expr,
+                        "score": float(eq["score"]),
+                        "loss": round(loss, 4),
+                        "ns": round(obs["ns"], 5),
+                        "r": round(obs["r"], 5),
+                        "N": N_obs,
+                        "complexity": int(eq["complexity"]),
+                    }
+                )
             if len(results) >= 10:
                 break
-        except:
+        except Exception:
             pass
 
     if not results:
@@ -324,6 +333,7 @@ def _run_pysr(config: dict) -> dict:
 # =============================================================================
 # Tool Function (called by agent)
 # =============================================================================
+
 
 def search_potential(config_json: str) -> str:
     """Find potentials matching target observables via symbolic regression (PySR). Takes 1-5 min.
@@ -345,11 +355,13 @@ def search_potential(config_json: str) -> str:
     # Validate required fields
     binary_ops = config.get("binary_operators")
     if not binary_ops:
-        return json.dumps({
-            "success": False,
-            "error": "Missing 'binary_operators'",
-            "hint": '{"binary_operators": ["+", "*", "^"]}'
-        })
+        return json.dumps(
+            {
+                "success": False,
+                "error": "Missing 'binary_operators'",
+                "hint": '{"binary_operators": ["+", "*", "^"]}',
+            }
+        )
 
     # Validate constraints reference valid operators
     all_ops = set(binary_ops) | set(config.get("unary_operators", []))
@@ -357,33 +369,39 @@ def search_potential(config_json: str) -> str:
     if config.get("constraints"):
         invalid = set(config["constraints"].keys()) - all_ops
         if invalid:
-            return json.dumps({
-                "success": False,
-                "error": f"constraints references undefined operators: {list(invalid)}"
-            })
+            return json.dumps(
+                {
+                    "success": False,
+                    "error": f"constraints references undefined operators: {list(invalid)}",
+                }
+            )
 
     if config.get("nested_constraints"):
         # Check outer keys
         invalid = set(config["nested_constraints"].keys()) - all_ops
         if invalid:
-            return json.dumps({
-                "success": False,
-                "error": f"nested_constraints references undefined operators: {list(invalid)}"
-            })
+            return json.dumps(
+                {
+                    "success": False,
+                    "error": f"nested_constraints references undefined operators: {list(invalid)}",
+                }
+            )
         # Check inner keys (nested operators must also be valid)
         for outer_op, inner_dict in config["nested_constraints"].items():
             if isinstance(inner_dict, dict):
                 invalid_inner = set(inner_dict.keys()) - all_ops
                 if invalid_inner:
-                    return json.dumps({
-                        "success": False,
-                        "error": f"nested_constraints['{outer_op}'] references undefined operators: {list(invalid_inner)}"
-                    })
+                    return json.dumps(
+                        {
+                            "success": False,
+                            "error": f"nested_constraints['{outer_op}'] references undefined operators: {list(invalid_inner)}",
+                        }
+                    )
 
     # Run in isolated process
     _print("[SR] Launching worker process...")
 
-    ctx = mp.get_context('spawn')
+    ctx = mp.get_context("spawn")
     with ProcessPoolExecutor(max_workers=1, max_tasks_per_child=1, mp_context=ctx) as executor:
         future = executor.submit(_run_pysr, config)
         try:
@@ -406,6 +424,6 @@ if __name__ == "__main__":
         "constraints": {"^": [-1, 1]},
         "maxsize": 10,
         "niterations": 3,
-        "populations": 5
+        "populations": 5,
     }
     print(search_potential(json.dumps(test_config)))

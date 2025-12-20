@@ -18,14 +18,13 @@ def check_prerequisites() -> bool:
         print("  Or: curl -fsSL https://install.julialang.org | sh (for Linux/macOS)")
         return False
 
-    result = subprocess.run(
-        ["julia", "--version"], capture_output=True, text=True, timeout=10
-    )
+    result = subprocess.run(["julia", "--version"], capture_output=True, text=True, timeout=10)
     print(f"✓ {result.stdout.strip()}")
 
     # Check PySR
     try:
         import pysr  # noqa: F401
+
         print("✓ PySR installed")
         return True
     except ImportError:
@@ -66,11 +65,13 @@ def setup_julia_environment() -> bool:
 
     # Step 2: Install Julia packages (suppress output)
     print("\nInstalling Julia packages...")
+    start = time.time()
     jl.seval("import Pkg; import Logging; Logging.disable_logging(Logging.Info)")
 
     for pkg in JULIA_PACKAGES:
         jl.seval(f'Pkg.add("{pkg}"; io=devnull)')
         print(f"  ✓ {pkg}")
+    print(f"✓ Packages installed ({time.time() - start:.0f}s)")
 
     jl.seval("Logging.disable_logging(Logging.Debug)")
 
@@ -79,10 +80,8 @@ def setup_julia_environment() -> bool:
     start = time.time()
     try:
         from sr_search import JULIA_MODULE
-        julia_code = JULIA_MODULE.format(
-            ns_target=0.9649, ns_sigma=0.0042,
-            r_target=0.0, r_sigma=0.014, N_obs=60.0
-        )
+
+        julia_code = JULIA_MODULE.format(ns_target=0.9649, ns_sigma=0.0042, r_target=0.0, r_sigma=0.014, N_obs=60.0)
         jl.seval(julia_code)
         print(f"✓ Custom loss function compiled ({time.time() - start:.0f}s)")
     except Exception as e:

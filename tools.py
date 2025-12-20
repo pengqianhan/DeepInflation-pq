@@ -6,8 +6,8 @@
 import json
 from pathlib import Path
 
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
 from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
 
@@ -70,7 +70,7 @@ def plot_potential(expression: str, output_path: str = "./potential_plot.png") -
         # Determine display range from trajectory endpoints
         phi_min, phi_max = phi[0], phi[-1]
         if trajectories_60:
-            all_phi = [p for t60, t50 in zip(trajectories_60, trajectories_50)
+            all_phi = [p for t60, t50 in zip(trajectories_60, trajectories_50, strict=False)
                        for p in [t60['phi_end'], t50['phi_N'], t60['phi_N']]]
             phi_min, phi_max = max(phi[0], min(all_phi) - 3), min(phi[-1], max(all_phi) + 3)
 
@@ -85,7 +85,7 @@ def plot_potential(expression: str, output_path: str = "./potential_plot.png") -
         axes[0].plot(phi_plot, V_plot, linewidth=2, color='#2E86AB', alpha=0.8)
         if trajectories_60:
             colors = plt.cm.tab10(np.arange(len(trajectories_60)))
-            for i, (t60, t50) in enumerate(zip(trajectories_60, trajectories_50)):
+            for i, (t60, t50) in enumerate(zip(trajectories_60, trajectories_50, strict=False)):
                 axes[0].scatter(t60['phi_end'], get_V(t60['phi_end']),
                                 s=60, c=[colors[i]], marker='x', linewidths=2.5, zorder=10)
                 axes[0].scatter([t50['phi_N'], t60['phi_N']],
@@ -143,7 +143,7 @@ def plot_potential(expression: str, output_path: str = "./potential_plot.png") -
             axes[2].contour(ns, r, P, levels=levels, colors=[posterior_color], linewidths=1.2, alpha=0.9, zorder=3)
 
         if trajectories_60:
-            for i, (t60, t50) in enumerate(zip(trajectories_60, trajectories_50)):
+            for i, (t60, t50) in enumerate(zip(trajectories_60, trajectories_50, strict=False)):
                 color = plt.cm.tab10((i + 1) % 10)
                 ns_line, r_line = [], []
                 for N_val in np.linspace(50, 60, 11):

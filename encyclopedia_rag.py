@@ -5,10 +5,8 @@ import json
 import os
 from hashlib import md5
 from pathlib import Path
-from typing import Optional
 
 import tiktoken
-
 from agno.knowledge.embedder.openai import OpenAIEmbedder
 from agno.knowledge.knowledge import Knowledge
 from agno.vectordb.lancedb import LanceDb, SearchType
@@ -36,10 +34,10 @@ class EncyclopediaRAG:
     def __init__(
         self,
         api_key: str,
-        base_url: Optional[str] = None,
+        base_url: str | None = None,
         embedding_model: str = "text-embedding-3-small",
         lancedb_dir: str = LANCEDB_DIR,
-        models_dir: str = MODELS_DIR
+        models_dir: str = MODELS_DIR,
     ):
         self.lancedb_dir = lancedb_dir
         self.models_dir = models_dir
@@ -89,7 +87,7 @@ class EncyclopediaRAG:
             self._build_index()
             # Save config on first build
             self.config_path.parent.mkdir(parents=True, exist_ok=True)
-            json.dump({"embedding_model": embedding_model}, open(self.config_path, 'w'))
+            json.dump({"embedding_model": embedding_model}, open(self.config_path, "w"))
         _print("[Encyclopedia] Ready")
 
     def _build_index(self):
@@ -98,16 +96,14 @@ class EncyclopediaRAG:
         Note: We use direct table.add() instead of Knowledge.add_content() because
         add_content() calls insert() which re-embeds each document individually.
         """
-        
+
         _print("[Index] Building...")
         chunks = self._load_and_chunk_documents()
 
         # Batch embed all contents in one API call
         _print(f"[Index] Batch embedding {len(chunks)} documents...")
         contents = [c[0] for c in chunks]
-        embeddings, _ = asyncio.run(
-            self.embedder.async_get_embeddings_batch_and_usage(contents)
-        )
+        embeddings, _ = asyncio.run(self.embedder.async_get_embeddings_batch_and_usage(contents))
         _print(f"[Index] Got {len(embeddings)} embeddings")
 
         # Prepare data for LanceDB (same format as LanceDb.insert)
@@ -124,11 +120,13 @@ class EncyclopediaRAG:
                 "content_id": None,
                 "content_hash": "encyclopedia",
             }
-            data.append({
-                "id": doc_id,
-                "vector": embeddings[i],
-                "payload": json.dumps(payload),
-            })
+            data.append(
+                {
+                    "id": doc_id,
+                    "vector": embeddings[i],
+                    "payload": json.dumps(payload),
+                }
+            )
 
         # Direct insert via LanceDB table API (bypasses buggy insert())
         self.vector_db.table.add(data)
@@ -151,7 +149,7 @@ class EncyclopediaRAG:
         intact_count, split_count = 0, 0
 
         for md_file in sorted(models_path.glob("*.md")):
-            content = md_file.read_text(encoding='utf-8').strip()
+            content = md_file.read_text(encoding="utf-8").strip()
             if len(content) < 100:
                 continue
 
@@ -178,13 +176,13 @@ class EncyclopediaRAG:
         if not json_path.exists():
             return {}
 
-        with open(json_path, encoding='utf-8') as f:
+        with open(json_path, encoding="utf-8") as f:
             data = json.load(f)
 
         potential_list = {
-            entry['Model']: {
-                'potential_latex': entry.get('Potential $V(\\phi)$', ''),
-                'parameters': entry.get('Parameters', '')
+            entry["Model"]: {
+                "potential_latex": entry.get("Potential $V(\\phi)$", ""),
+                "parameters": entry.get("Parameters", ""),
             }
             for entry in data
         }
@@ -194,17 +192,15 @@ class EncyclopediaRAG:
     def _chunk_by_sections(self, content: str, model_name: str, base_metadata: dict) -> list:
         """Split markdown by sections, further chunk if exceeds MAX_TOKENS."""
         chunks = []
-        lines = content.split('\n')
+        lines = content.split("\n")
         current_section = []
         current_title = model_name
 
         for line in lines:
-            if line.startswith('# ') and current_section:
-                section_content = '\n'.join(current_section).strip()
+            if line.startswith("# ") and current_section:
+                section_content = "\n".join(current_section).strip()
                 if section_content and len(_encoding.encode(section_content)) > 50:
-                    chunks.extend(self._chunk_section(
-                        section_content, current_title, model_name, base_metadata
-                    ))
+                    chunks.extend(self._chunk_section(section_content, current_title, model_name, base_metadata))
                 current_section = [line]
                 current_title = f"{model_name} - {line[2:].strip()}"
             else:
@@ -212,11 +208,9 @@ class EncyclopediaRAG:
 
         # Last section
         if current_section:
-            section_content = '\n'.join(current_section).strip()
+            section_content = "\n".join(current_section).strip()
             if section_content and len(_encoding.encode(section_content)) > 50:
-                chunks.extend(self._chunk_section(
-                    section_content, current_title, model_name, base_metadata
-                ))
+                chunks.extend(self._chunk_section(section_content, current_title, model_name, base_metadata))
 
         return chunks
 
@@ -231,14 +225,14 @@ class EncyclopediaRAG:
         # Further chunk by paragraphs
         _print(f"[Index] - Chunking section '{title}' ({token_count} tokens)")
         chunks = []
-        paragraphs = content.split('\n\n')
+        paragraphs = content.split("\n\n")
         current_chunk = []
         current_tokens = 0
 
         for para in paragraphs:
             para_tokens = len(_encoding.encode(para))
             if current_tokens + para_tokens > MAX_TOKENS and current_chunk:
-                chunk_content = '\n\n'.join(current_chunk)
+                chunk_content = "\n\n".join(current_chunk)
                 chunk_title = f"{title} (part {len(chunks) + 1})"
                 meta = {"model": model_name, "title": chunk_title, **base_metadata}
                 chunks.append((chunk_content, chunk_title, meta))
@@ -249,7 +243,7 @@ class EncyclopediaRAG:
                 current_tokens += para_tokens
 
         if current_chunk:
-            chunk_content = '\n\n'.join(current_chunk)
+            chunk_content = "\n\n".join(current_chunk)
             chunk_title = f"{title} (part {len(chunks) + 1})" if chunks else title
             meta = {"model": model_name, "title": chunk_title, **base_metadata}
             chunks.append((chunk_content, chunk_title, meta))
@@ -265,11 +259,12 @@ class EncyclopediaRAG:
         self._build_index()
         # Save embedding model config
         self.config_path.parent.mkdir(parents=True, exist_ok=True)
-        json.dump({"embedding_model": self.embedding_model}, open(self.config_path, 'w'))
+        json.dump({"embedding_model": self.embedding_model}, open(self.config_path, "w"))
 
 
 if __name__ == "__main__":
     from dotenv import load_dotenv
+
     load_dotenv()
 
     print("=" * 60)
@@ -285,15 +280,18 @@ if __name__ == "__main__":
     # Test search via Knowledge
     # results = rag.knowledge.search("Tip Inflation", max_results=4)
     # print(results)
-    
-    docs = rag.vector_db.search("Dual Inflation model 'dual inflation' inflationary cosmology potential", limit=4)
+
+    docs = rag.vector_db.search(
+        "tip inflation model",
+        limit=4,
+    )
 
     results = [
-                {
-                    "title": doc.meta_data.get("title", "Unknown"),
-                    # "content": doc.content,
-                    "metadata": doc.meta_data
-                }
-                for doc in docs
-            ]
+        {
+            "title": doc.meta_data.get("title", "Unknown"),
+            # "content": doc.content,
+            "metadata": doc.meta_data,
+        }
+        for doc in docs
+    ]
     print(json.dumps(results, indent=2, ensure_ascii=False))

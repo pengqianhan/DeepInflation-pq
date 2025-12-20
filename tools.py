@@ -1,6 +1,11 @@
 """Tools for Inflation Agent
-- analyze_potential: Compute observables (~1s)
-- plot_potential: Generate 3-panel plot (~2s)
+
+Two main tools for analyzing inflation potentials:
+- analyze_potential: Compute observables (ns, r, A_s) for all trajectories (~1s)
+- plot_potential: Generate 3-panel diagnostic plot (~2s)
+  - Panel 1: V(φ) with trajectory markers (φ_end, N=50, N=60)
+  - Panel 2: Slow-roll parameters (ε, η) vs φ
+  - Panel 3: Predicted (ns, r) vs Planck+BK18 posterior
 """
 
 import json
@@ -67,46 +72,83 @@ def plot_potential(expression: str, output_path: str = "./potential_plot.png") -
         trajectories_60 = compute_observables_all_trajectories(expression, N=60.0)
         trajectories_50 = compute_observables_all_trajectories(expression, N=50.0)
 
-        # Determine display range from trajectory endpoints
+        # Determine display range from trajectory endpoints (with 3-unit margin)
         phi_min, phi_max = phi[0], phi[-1]
         if trajectories_60:
-            all_phi = [p for t60, t50 in zip(trajectories_60, trajectories_50, strict=False)
-                       for p in [t60['phi_end'], t50['phi_N'], t60['phi_N']]]
-            phi_min, phi_max = max(phi[0], min(all_phi) - 3), min(phi[-1], max(all_phi) + 3)
+            all_phi = [
+                p for t60, t50 in zip(trajectories_60, trajectories_50, strict=False)
+                for p in [t60['phi_end'], t50['phi_N'], t60['phi_N']]
+            ]
+            phi_min = max(phi[0], min(all_phi) - 3)
+            phi_max = min(phi[-1], max(all_phi) + 3)
 
+        # Restrict to V > 0 region
+        positive_V_indices = np.where(V > 0)[0]
+        if len(positive_V_indices) > 0:
+            phi_V_positive_min = phi[positive_V_indices[0]]
+            phi_V_positive_max = phi[positive_V_indices[-1]]
+            phi_min = max(phi_min, phi_V_positive_min)
+            phi_max = min(phi_max, phi_V_positive_max)
+
+        # Apply mask to get plotting data
         mask = (phi >= phi_min) & (phi <= phi_max)
         phi_plot, V_plot, eps_plot, eta_plot = phi[mask], V[mask], eps[mask], eta[mask]
-        get_V = lambda p: V[np.argmin(np.abs(phi - p))]
+
+        # Helper function to get V value at specific phi (for trajectory markers)
+        def get_V(p):
+            return V[np.argmin(np.abs(phi - p))]
 
         fig, axes = plt.subplots(1, 3, figsize=(13, 4))
         fig.suptitle(f'V(φ) = {expression}', fontsize=11, y=0.98)
 
-        # Panel 1: Potential
+        # Panel 1: Potential with trajectory markers
         axes[0].plot(phi_plot, V_plot, linewidth=2, color='#2E86AB', alpha=0.8)
+
         if trajectories_60:
             colors = plt.cm.tab10(np.arange(len(trajectories_60)))
+            # Plot trajectory endpoints and N=50/60 markers
             for i, (t60, t50) in enumerate(zip(trajectories_60, trajectories_50, strict=False)):
-                axes[0].scatter(t60['phi_end'], get_V(t60['phi_end']),
-                                s=60, c=[colors[i]], marker='x', linewidths=2.5, zorder=10)
-                axes[0].scatter([t50['phi_N'], t60['phi_N']],
-                                [get_V(t50['phi_N']), get_V(t60['phi_N'])],
-                                s=[40, 60], c=[colors[i], colors[i]], marker='o',
-                                edgecolors='black', linewidths=1, zorder=9)
+                # Inflation end (ε=1)
+                axes[0].scatter(
+                    t60['phi_end'], get_V(t60['phi_end']),
+                    s=60, c=[colors[i]], marker='x', linewidths=2.5, zorder=10
+                )
+                # N=50 and N=60 e-folds before end
+                axes[0].scatter(
+                    [t50['phi_N'], t60['phi_N']],
+                    [get_V(t50['phi_N']), get_V(t60['phi_N'])],
+                    s=[40, 60], c=[colors[i], colors[i]], marker='o',
+                    edgecolors='black', linewidths=1, zorder=9
+                )
 
+            # Build legend
             legend = []
             if len(trajectories_60) > 1:
+                # Add trajectory labels
                 legend.extend([
-                    Line2D([0], [0], marker='o', color='w', markerfacecolor=colors[i],
-                           markeredgecolor='black', markersize=7, linewidth=0, label=f"Trajectory #{i+1}")
+                    Line2D(
+                        [0], [0], marker='o', color='w',
+                        markerfacecolor=colors[i], markeredgecolor='black',
+                        markersize=7, linewidth=0, label=f"Trajectory #{i+1}"
+                    )
                     for i in range(len(trajectories_60))
                 ])
+            # Add marker type labels
             legend.extend([
-                Line2D([0], [0], marker='x', color=colors[0], markersize=8,
-                       markeredgewidth=2.5, linewidth=0, label='φ_end'),
-                Line2D([0], [0], marker='o', color='w', markerfacecolor=colors[0],
-                       markeredgecolor='black', markersize=6, linewidth=0, label='N=50'),
-                Line2D([0], [0], marker='o', color='w', markerfacecolor=colors[0],
-                       markeredgecolor='black', markersize=8, linewidth=0, label='N=60')
+                Line2D(
+                    [0], [0], marker='x', color=colors[0],
+                    markersize=8, markeredgewidth=2.5, linewidth=0, label='φ_end'
+                ),
+                Line2D(
+                    [0], [0], marker='o', color='w',
+                    markerfacecolor=colors[0], markeredgecolor='black',
+                    markersize=6, linewidth=0, label='N=50'
+                ),
+                Line2D(
+                    [0], [0], marker='o', color='w',
+                    markerfacecolor=colors[0], markeredgecolor='black',
+                    markersize=8, linewidth=0, label='N=60'
+                )
             ])
             axes[0].legend(handles=legend, fontsize=9, loc='best', framealpha=0.95, edgecolor='gray')
 
@@ -133,45 +175,85 @@ def plot_potential(expression: str, output_path: str = "./potential_plot.png") -
         axes[1].set_title('Slow-roll Parameters', fontsize=11)
         axes[1].grid(True, alpha=0.3, which='both', linestyle=':')
 
-        # Panel 3: ns-r plane
+        # Panel 3: ns-r observational plane with Planck+BK18 posterior
         posterior_color = plt.cm.tab10(0)
         if _BK18_DATA is not None:
             ns, r, P = _BK18_DATA['ns'], _BK18_DATA['r'], _BK18_DATA['P_bk18']
             levels = _BK18_DATA['levels_bk18']
-            axes[2].contourf(ns, r, P, levels=[levels[0], levels[1]], colors=[posterior_color], alpha=0.4, zorder=1)
-            axes[2].contourf(ns, r, P, levels=[levels[1], P.max()], colors=[posterior_color], alpha=0.8, zorder=2)
-            axes[2].contour(ns, r, P, levels=levels, colors=[posterior_color], linewidths=1.2, alpha=0.9, zorder=3)
+            # Plot 68% and 95% confidence regions
+            axes[2].contourf(
+                ns, r, P, levels=[levels[0], levels[1]],
+                colors=[posterior_color], alpha=0.4, zorder=1
+            )
+            axes[2].contourf(
+                ns, r, P, levels=[levels[1], P.max()],
+                colors=[posterior_color], alpha=0.8, zorder=2
+            )
+            axes[2].contour(
+                ns, r, P, levels=levels,
+                colors=[posterior_color], linewidths=1.2, alpha=0.9, zorder=3
+            )
 
         if trajectories_60:
+            # Plot trajectory predictions in ns-r plane
             for i, (t60, t50) in enumerate(zip(trajectories_60, trajectories_50, strict=False)):
                 color = plt.cm.tab10((i + 1) % 10)
+
+                # Compute ns-r trajectory line for N ∈ [50, 60]
                 ns_line, r_line = [], []
                 for N_val in np.linspace(50, 60, 11):
                     traj = compute_observables_all_trajectories(expression, N=N_val)
                     if traj and len(traj) > i:
                         ns_line.append(traj[i]['ns'])
                         r_line.append(traj[i]['r'])
-                if len(ns_line) > 1:
-                    axes[2].plot(ns_line, r_line, '-', color=color, alpha=0.7, linewidth=2.5, zorder=5)
-                axes[2].scatter(t50['ns'], t50['r'], s=40, c=[color], marker='o',
-                                edgecolors='black', linewidths=1.0, zorder=10, alpha=0.95)
-                axes[2].scatter(t60['ns'], t60['r'], s=60, c=[color], marker='o',
-                                edgecolors='black', linewidths=1.2, zorder=11, alpha=0.95)
 
-            legend = [Patch(facecolor=posterior_color, alpha=0.8, edgecolor=posterior_color,
-                            linewidth=1.2, label='Planck+BK18+BAO')]
+                # Plot trajectory line
+                if len(ns_line) > 1:
+                    axes[2].plot(
+                        ns_line, r_line, '-',
+                        color=color, alpha=0.7, linewidth=2.5, zorder=5
+                    )
+
+                # Plot N=50 and N=60 points
+                axes[2].scatter(
+                    t50['ns'], t50['r'], s=40, c=[color], marker='o',
+                    edgecolors='black', linewidths=1.0, zorder=10, alpha=0.95
+                )
+                axes[2].scatter(
+                    t60['ns'], t60['r'], s=60, c=[color], marker='o',
+                    edgecolors='black', linewidths=1.2, zorder=11, alpha=0.95
+                )
+
+            # Build legend for Panel 3
+            legend = [
+                Patch(
+                    facecolor=posterior_color, alpha=0.8,
+                    edgecolor=posterior_color, linewidth=1.2,
+                    label='Planck+BK18+BAO'
+                )
+            ]
             if len(trajectories_60) > 1:
                 legend.extend([
-                    Line2D([0], [0], marker='o', color=plt.cm.tab10((i + 1) % 10), linewidth=2.5,
-                           markerfacecolor=plt.cm.tab10((i + 1) % 10), markeredgecolor='black',
-                           markersize=5, label=f"Trajectory #{i+1}")
+                    Line2D(
+                        [0], [0], marker='o', linewidth=2.5,
+                        color=plt.cm.tab10((i + 1) % 10),
+                        markerfacecolor=plt.cm.tab10((i + 1) % 10),
+                        markeredgecolor='black', markersize=5,
+                        label=f"Trajectory #{i+1}"
+                    )
                     for i in range(len(trajectories_60))
                 ])
             legend.extend([
-                Line2D([0], [0], marker='o', color='w', markerfacecolor='gray',
-                       markeredgecolor='black', markersize=5, linewidth=0, label='N=50'),
-                Line2D([0], [0], marker='o', color='w', markerfacecolor='gray',
-                       markeredgecolor='black', markersize=7, linewidth=0, label='N=60')
+                Line2D(
+                    [0], [0], marker='o', color='w',
+                    markerfacecolor='gray', markeredgecolor='black',
+                    markersize=5, linewidth=0, label='N=50'
+                ),
+                Line2D(
+                    [0], [0], marker='o', color='w',
+                    markerfacecolor='gray', markeredgecolor='black',
+                    markersize=7, linewidth=0, label='N=60'
+                )
             ])
             axes[2].legend(handles=legend, fontsize=9, framealpha=0.95, edgecolor='gray')
             axes[2].grid(True, alpha=0.3, linestyle=':', zorder=0)
@@ -202,6 +284,9 @@ def plot_potential(expression: str, output_path: str = "./potential_plot.png") -
 
 
 if __name__ == "__main__":
-    print("Testing analyze_potential...")
+    print("Testing tools...")
     print("=" * 60)
+    print("\n1. Analyzing V(φ) = phi^2:")
     print(analyze_potential("phi^2"))
+    print("\n2. Plotting V(φ) = phi^2:")
+    print(plot_potential("phi^2"))

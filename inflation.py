@@ -192,7 +192,6 @@ def compute_observables(V, V_prime, V_double_prime, phi_min, phi_max, N_values=N
             candidates.append(
                 {
                     "phi_end": float(phi_end),
-                    "direction": "right" if direction > 0 else "left",
                     "observables": observables,
                 }
             )
@@ -212,8 +211,8 @@ def compute_observables_all_trajectories(expression: str, phi_min: float = 0.001
            - list: multiple values, return grouped structure
 
     Returns:
-        If N is float/int: list of flat dicts {trajectory_id, phi_end, direction, N, ns, r, ...}
-        If N is list/None: list of dicts {trajectory_id, phi_end, direction, observables: {N: {...}}}
+        If N is float/int: list of flat dicts {trajectory_id, phi_end, N, ns, r, ...}
+        If N is list/None: list of dicts {trajectory_id, phi_end, observables: {N: {...}}}
     """
     V = parse_potential(expression)
     V_prime = lambda phi: numerical_derivative(V, phi, order=1)
@@ -235,7 +234,6 @@ def compute_observables_all_trajectories(expression: str, phi_min: float = 0.001
                     {
                         "trajectory_id": traj_id + 1,
                         "phi_end": cand["phi_end"],
-                        "direction": cand["direction"],
                         "N": N,
                         **obs,
                     }
@@ -270,7 +268,9 @@ if __name__ == "__main__":
     print("Test: V = phi^2 (multi-N mode)")
     print("=" * 60)
 
-    trajectories = compute_observables_all_trajectories("tanh(sqrt(phi))**2",)
+    trajectories = compute_observables_all_trajectories(
+        "tanh(sqrt(phi))**2",
+    )
 
     if trajectories:
         print(f"\nFound {len(trajectories)} trajectory(ies):")

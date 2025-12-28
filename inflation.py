@@ -56,7 +56,7 @@ def parse_potential(expression: str):
     return V
 
 
-def numerical_derivative(f, x, h=1e-5, order=1):
+def numerical_derivative(f, x, h=1e-6, order=1):
     """Central difference derivative."""
     if order == 1:
         return (f(x + h) - f(x - h)) / (2 * h)
@@ -263,20 +263,14 @@ def generate_plot_data(expression: str, phi_min: float = 0.001, phi_max: float =
 
 
 if __name__ == "__main__":
-    print("Testing physics module...\n")
-    print("=" * 60)
-    print("Test: V = phi^2 (multi-N mode)")
-    print("=" * 60)
-
     trajectories = compute_observables_all_trajectories(
-        "tanh(sqrt(phi))**2",
+        "sqrt((-0.12801966162984496 * phi) + 25.040061712408207)",
     )
 
     if trajectories:
         print(f"\nFound {len(trajectories)} trajectory(ies):")
         for traj in trajectories:
             print(f"\nTrajectory #{traj['trajectory_id']}:")
-            print(f"  Direction: {traj['direction']}")
             print(f"  phi_end: {traj['phi_end']:.3f}")
             for N, obs in traj["observables"].items():
                 print(f"  N={N}: phi_N={obs['phi_N']:.3f}, ns={obs['ns']:.5f}, r={obs['r']:.5f}")

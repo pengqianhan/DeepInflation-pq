@@ -301,11 +301,9 @@ def _run_pysr(config: dict) -> dict:
             if not obs_list:
                 continue
             obs = obs_list[0]
-            chi2 = ((obs["ns"] - ns_target) / ns_sigma) ** 2 + (
-                (obs["r"] - r_target) / r_sigma
-            ) ** 2
+            chi2 = ((obs["ns"] - ns_target) / ns_sigma) ** 2 + ((obs["r"] - r_target) / r_sigma) ** 2
             loss = chi2 / 2
-            if loss <= 10.0:
+            if loss <= 50.0:
                 results.append(
                     {
                         "rank": len(results) + 1,
@@ -341,7 +339,7 @@ def search_potential(config_json: str) -> str:
     Returns ranked candidates with loss and complexity.
 
     Args:
-        config_json: JSON config with: binary_operators, unary_operators (optional),
+        config_json: JSON config with: binary_operators, unary_operators,
             ns_target, ns_sigma, r_target, r_sigma, N_obs, maxsize, niterations,
             populations, constraints, nested_constraints, complexity_of_operators.
             Example: {"binary_operators": ["+", "*", "^"], "ns_target": 0.9649, ...}

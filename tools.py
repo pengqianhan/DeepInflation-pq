@@ -45,12 +45,15 @@ def analyze_potential(expression: str) -> str:
         trajectories = compute_observables_all_trajectories(expression)
         if not trajectories:
             return json.dumps({"success": False, "error": "No valid trajectories"}, indent=2)
-        return json.dumps({
-            "success": True,
-            "expression": expression,
-            "num_trajectories": len(trajectories),
-            "trajectories": trajectories
-        }, indent=2)
+        return json.dumps(
+            {
+                "success": True,
+                "expression": expression,
+                "num_trajectories": len(trajectories),
+                "trajectories": trajectories,
+            },
+            indent=2,
+        )
     except Exception as e:
         return json.dumps({"success": False, "error": str(e)}, indent=2)
 
@@ -76,8 +79,9 @@ def plot_potential(expression: str, output_path: str = "./potential_plot.png") -
         phi_min, phi_max = phi[0], phi[-1]
         if trajectories_60:
             all_phi = [
-                p for t60, t50 in zip(trajectories_60, trajectories_50, strict=False)
-                for p in [t60['phi_end'], t50['phi_N'], t60['phi_N']]
+                p
+                for t60, t50 in zip(trajectories_60, trajectories_50, strict=True)
+                for p in [t60["phi_end"], t50["phi_N"], t60["phi_N"]]
             ]
             phi_min = max(phi[0], min(all_phi) - 3)
             phi_max = min(phi[-1], max(all_phi) + 3)
@@ -99,7 +103,7 @@ def plot_potential(expression: str, output_path: str = "./potential_plot.png") -
             return V[np.argmin(np.abs(phi - p))]
 
         fig, axes = plt.subplots(1, 3, figsize=(13, 4))
-        fig.suptitle(f'V(φ) = {expression}', fontsize=11, y=0.98)
+        fig.suptitle(f"V(φ) = {expression}", fontsize=11, y=0.98)
 
         # Panel 1: Potential with trajectory markers
         axes[0].plot(phi_plot, V_plot, linewidth=2, color='#2E86AB', alpha=0.8)
@@ -107,7 +111,7 @@ def plot_potential(expression: str, output_path: str = "./potential_plot.png") -
         if trajectories_60:
             colors = plt.cm.tab10(np.arange(len(trajectories_60)))
             # Plot trajectory endpoints and N=50/60 markers
-            for i, (t60, t50) in enumerate(zip(trajectories_60, trajectories_50, strict=False)):
+            for i, (t60, t50) in enumerate(zip(trajectories_60, trajectories_50, strict=True)):
                 # Inflation end (ε=1)
                 axes[0].scatter(
                     t60['phi_end'], get_V(t60['phi_end']),
@@ -196,7 +200,7 @@ def plot_potential(expression: str, output_path: str = "./potential_plot.png") -
 
         if trajectories_60:
             # Plot trajectory predictions in ns-r plane
-            for i, (t60, t50) in enumerate(zip(trajectories_60, trajectories_50, strict=False)):
+            for i, (t60, t50) in enumerate(zip(trajectories_60, trajectories_50, strict=True)):
                 color = plt.cm.tab10((i + 1) % 10)
 
                 # Compute ns-r trajectory line for N ∈ [50, 60]
@@ -258,7 +262,7 @@ def plot_potential(expression: str, output_path: str = "./potential_plot.png") -
             axes[2].legend(handles=legend, fontsize=9, framealpha=0.95, edgecolor='gray')
             axes[2].grid(True, alpha=0.3, linestyle=':', zorder=0)
             r_all = [t['r'] for t in trajectories_60 + trajectories_50]
-            axes[2].set_xlim([0.945, 0.99])
+            axes[2].set_xlim([0.945, 1.0])
             axes[2].set_ylim([0.0, min(0.26, max(max(r_all) * 1.3, 0.06))])
         else:
             axes[2].text(0.5, 0.5, 'No valid trajectories', ha='center', va='center',
@@ -273,7 +277,7 @@ def plot_potential(expression: str, output_path: str = "./potential_plot.png") -
         plt.tight_layout()
         output_path = Path(output_path)
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        plt.savefig(output_path, dpi=150, bbox_inches='tight')
+        plt.savefig(output_path, dpi=150, bbox_inches="tight")
         plt.close()
         _print(f"[Plot] Saved to {output_path.absolute()}")
 

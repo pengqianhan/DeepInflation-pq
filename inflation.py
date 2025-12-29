@@ -264,7 +264,7 @@ def generate_plot_data(expression: str, phi_min: float = 0.001, phi_max: float =
 
 if __name__ == "__main__":
     trajectories = compute_observables_all_trajectories(
-        "sqrt((-0.12801966162984496 * phi) + 25.040061712408207)",
+        "exp(-0.42214/phi)",
     )
 
     if trajectories:

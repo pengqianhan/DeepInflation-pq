@@ -13,7 +13,7 @@ from agno.vectordb.lancedb import LanceDb, SearchType
 
 # Configuration
 MODELS_DIR = "data/models"
-INFLATION_LIST_PATH = "data/inflation_list.json"
+MODEL_LIST_PATH = "data/model_list.json"
 LANCEDB_DIR = "tmp/lancedb"
 TABLE_NAME = "encyclopedia"
 CONFIG_FILE = "embedding_config.json"
@@ -171,8 +171,8 @@ class EncyclopediaRAG:
         return all_chunks
 
     def _load_potential_metadata(self) -> dict:
-        """Load potential metadata from inflation_list.json."""
-        json_path = Path(INFLATION_LIST_PATH)
+        """Load potential metadata from model_list.json."""
+        json_path = Path(MODEL_LIST_PATH)
         if not json_path.exists():
             return {}
 

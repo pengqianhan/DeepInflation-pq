@@ -1,6 +1,6 @@
 # DeepInflation
 
-AI agent for inflation cosmology research using Agno framework.
+AI Agent for Inflationary Cosmology Research and Model Discovery, based on [Agno](https://github.com/agno-agi/agno).
 
 ## Setup
 
@@ -16,7 +16,7 @@ uv sync
 
 ### 2. Julia
 
-Install Julia first: <https://julialang.org/downloads/>
+Symbolic regression requires Julia. Install from <https://julialang.org/downloads/>.
 
 ```bash
 # Initialize Julia packages (~3-5 min first time)
@@ -43,31 +43,40 @@ export OPENAI_API_KEY="sk-..."
 
 ```bash
 export OPENAI_API_KEY="your-key"
-export OPENAI_BASE_URL="https://api.your-provider.com/v1"
+export BASE_URL="https://api.your-provider.com/v1"
 ```
 
 **Ollama** (local):
 
 ```bash
-export OPENAI_BASE_URL="http://localhost:11434/v1"
+export BASE_URL="http://localhost:11434/v1"
 # Then set model in UI
 ```
 
-## Architecture
+## Usage
 
-```text
-agent.py           # Agno Team (main + SR sub-agent)
-tools.py           # analyze_potential, plot_potential
-sr_search.py       # search_potential (ProcessPoolExecutor isolation)
-inflation.py       # Python inflation calculations
-encyclopedia_rag.py# LanceDB hybrid search (Vector + BM25)
-app.py             # Gradio web interface
-```
+### Web UI
 
-## Quick Example
+Natural language queries via the chat interface:
+
+| Query                                       | Tool                          |
+| ------------------------------------------- | ----------------------------- |
+| "What is ns for V = phi^2?"                 | `analyze_potential`           |
+| "Plot V = (1-exp(-sqrt(2/3)*phi))^2"        | `plot_potential`              |
+| "Find potentials with ns ≈ 0.965, r < 0.01" | `search_potential` (SR)       |
+| "What is Starobinsky inflation?"            | `search_knowledge_base` (RAG) |
+
+### Python API
 
 ```python
 from agent import DeepInflation
+
 agent = DeepInflation(model="gpt-5.2")
 response = agent.run("What is ns for V = phi^2?")
 ```
+
+## Acknowledgments
+
+- [Agno](https://github.com/agno-agi/agno) — Agent framework
+- [PySR](https://github.com/MilesCranmer/PySR) — Symbolic regression
+- [Encyclopædia Inflationaris](https://arxiv.org/abs/1303.3787) — Knowledge base.

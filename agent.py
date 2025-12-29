@@ -68,6 +68,7 @@ Query Encyclopædia Inflationaris (100+ inflation models).
 - **Use for**: Model names, physics background, known potential forms
 - **NOT for**: Finding models from observables → delegate to SR Agent
 - **Query format**: Plain English only (no LaTeX or math symbols)
+- **Citation required**: When using information from this tool, cite the source
 
 # OUTPUT PRINCIPLES
 
@@ -75,6 +76,8 @@ Query Encyclopædia Inflationaris (100+ inflation models).
 - Use proper Markdown with $...$ for math.
 - For plots, provide the saved file path.
 - Always base the final answer on tool results, not assumptions. Do not invent data. If data is missing or inconclusive, state that clearly.
+- **Citation**: When using information from `search_knowledge_base`, include a reference:
+  > Source: Encyclopædia Inflationaris ([arXiv:1303.3787](https://arxiv.org/abs/1303.3787))
 
 # ERROR HANDLING
 

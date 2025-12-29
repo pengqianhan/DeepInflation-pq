@@ -12,7 +12,7 @@ from agno.run.agent import RunEvent
 from agno.run.team import TeamRunEvent
 from agno.team import Team
 
-from encyclopedia_rag import EncyclopediaRAG
+from encyclopedia_rag import init_rag, search_encyclopedia
 from sr_search import search_potential
 from tools import analyze_potential, plot_potential
 
@@ -35,7 +35,7 @@ MAIN_AGENT_PROMPT = r"""You are an expert inflation cosmology assistant speciali
 User Request
 ├─ "What is ns/r for V = ...?" → analyze_potential
 ├─ "Plot/show/visualize V = ..." → plot_potential
-├─ "What is [model name]?" / "Explain [concept]" → search_knowledge_base
+├─ "What is [model name]?" / "Explain [concept]" → search_encyclopedia
 ├─ "Find/discover potential with ns≈.../r<..." → DELEGATE to SR Agent
 └─ "Find models compatible with Planck data" → DELEGATE to SR Agent
 ```
@@ -63,11 +63,12 @@ Generate 3-panel diagnostic plot.
 - Panel 3: Predicted (ns, r) overlaid on Planck+BK18 posterior
 - **Returns**: Absolute path to saved PNG
 
-## search_knowledge_base (built-in RAG)
+## search_encyclopedia(query, top_k=3)
 Query Encyclopædia Inflationaris (100+ inflation models).
-- **Use for**: Model names, physics background, known potential forms
+- **Use for**: Model names, physics background
 - **NOT for**: Finding models from observables → delegate to SR Agent
 - **Query format**: Plain English only (no LaTeX or math symbols)
+- **Returns**: Full model documentation including potential, parameters, and theoretical background
 - **Citation required**: When using information from this tool, cite the source
 
 # OUTPUT PRINCIPLES
@@ -76,7 +77,7 @@ Query Encyclopædia Inflationaris (100+ inflation models).
 - Use proper Markdown with $...$ for math.
 - For plots, provide the saved file path.
 - Always base the final answer on tool results, not assumptions. Do not invent data. If data is missing or inconclusive, state that clearly.
-- **Citation**: When using information from `search_knowledge_base`, include a reference:
+- **Citation**: When using information from `search_encyclopedia`, include a reference:
   > Source: Encyclopædia Inflationaris ([arXiv:1303.3787](https://arxiv.org/abs/1303.3787))
 
 # ERROR HANDLING
@@ -96,7 +97,7 @@ SR_AGENT_PROMPT = r"""You are a symbolic regression specialist. Your job is to c
 3. **Run** `search_potential` with your config JSON
 4. **Return** config summary + ranked results immediately
 
-Note: Run `search_potential` once per delegation.
+Note: Run `search_potential` ONLY ONCE per delegation.
 
 # PYSR CONFIG REFERENCE
 
@@ -219,7 +220,7 @@ Return in this format:
 TOOL_DISPLAY_CONFIG = {
     "analyze_potential": ("🔬", "Analyzing", False),
     "plot_potential": ("📊", "Plotting", False),
-    "search_knowledge_base": ("📚", "Encyclopedia", False),
+    "search_encyclopedia": ("📚", "Encyclopedia", False),
     "search_potential": ("🧬", "Symbolic Regression", True),
 }
 
@@ -289,21 +290,24 @@ class DeepInflation:
             base_url=self._base_url,
             temperature=temperature,
         )
-        self._rag = EncyclopediaRAG(
+
+        # Initialize Encyclopedia RAG (singleton)
+        init_rag(
             api_key=self._api_key,
             base_url=self._base_url,
             embedding_model=embedding_model,
         )
+
         self._db = SqliteDb(
             db_file="tmp/agent_storage.db",
             session_table="inflation_agent_sessions",
         )
 
         # Set verbose flag for submodules
-        import encyclopedia_rag
+        import encyclopedia_rag as rag_module
         import tools as tools_module
 
-        tools_module.VERBOSE = encyclopedia_rag.VERBOSE = verbose
+        tools_module.VERBOSE = rag_module.VERBOSE = verbose
 
         if verbose:
             print(f"[Agent] Initializing with model={model}, base_url={self._base_url or 'default'}")
@@ -329,15 +333,13 @@ class DeepInflation:
             name="Inflation Research Team",
             model=self._model,
             members=[sr_agent],
-            tools=[analyze_potential, plot_potential],
+            tools=[analyze_potential, plot_potential, search_encyclopedia],
             instructions=MAIN_AGENT_PROMPT,
             show_members_responses=True,
             markdown=True,
             db=self._db,
             add_history_to_context=True,
             num_history_runs=5,
-            knowledge=self._rag.knowledge,
-            search_knowledge=True,
         )
 
     async def stream(self, question: str):

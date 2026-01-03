@@ -70,11 +70,11 @@ class EncyclopediaRAG:
             table_name=TABLE_NAME,
             search_type=SearchType.hybrid,
             embedder=self.embedder,
-            use_tantivy=False, # to query 
+            use_tantivy=False, # to retrive formulas
         )
 
         # Load existing index or build new one
-        saved = json.load(open(self.config_path)) if self.config_path.exists() else {}
+        saved = json.load(open(self.config_path, encoding="utf-8")) if self.config_path.exists() else {}
         count = self.vector_db.get_count()
 
         if count > 0 and saved.get("embedding_model") == embedding_model:
@@ -97,7 +97,7 @@ class EncyclopediaRAG:
         potentials = {}
         meta_path = Path(MODEL_LIST_PATH)
         if meta_path.exists():
-            for entry in json.load(open(meta_path)):
+            for entry in json.load(open(meta_path, encoding="utf-8")):
                 potentials[entry["Model"]] = {
                     "potential_latex": entry.get("Potential $V(\\phi)$", ""),
                     "parameters": entry.get("Parameters", ""),
@@ -177,7 +177,7 @@ class EncyclopediaRAG:
                 "embedding_model": self.embedding_model,
                 "parent_store": self.parent_store,
             },
-            open(self.config_path, "w"),
+            open(self.config_path, "w", encoding="utf-8"),
             ensure_ascii=False,
         )
 
@@ -312,7 +312,11 @@ def search_encyclopedia(query: str, top_k: int = 3) -> str:
         return json.dumps({"success": False, "error": "Encyclopedia not initialized"})
 
     top_k = max(1, min(5, top_k))
-    results = _rag.search(query, num_parents=top_k)
+    
+    try:
+        results = _rag.search(query, num_parents=top_k)
+    except Exception as e:
+        return json.dumps({"success": False, "error": str(e)})
 
     if not results:
         return json.dumps(
@@ -356,6 +360,6 @@ if __name__ == "__main__":
 
     rag = init_rag(os.getenv("OPENAI_API_KEY"), os.getenv("BASE_URL"))
 
-    for r in rag.search(r"(1-exp(-0.816*phi))^2", num_parents=5):
+    for r in rag.search(r"(1-exp(-sqrt(2/3)*phi))^2", num_parents=5):
         print(f"[{r['title']}] score={r['score']:.3f} ")
         print(f"  Potential: {r['metadata'].get('potential_latex', 'N/A')[:60]}...")

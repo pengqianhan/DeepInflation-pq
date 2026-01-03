@@ -107,11 +107,9 @@ Construct `config_json` based on physics goals and time budget.
 
 - **ns_target** (default 0.9649): Target scalar spectral index
 - **ns_sigma** (default 0.0042): Tolerance for ns (widen for exploration, tighten for precision)
-- **r_target** (default 0.0): Target tensor-to-scalar ratio
+- **r_target** (default 0.0): Target tensor-to-scalar ratio (keep 0.0 if no detection is requested) )
 - **r_sigma** (default 0.014): Tolerance for r
 - **N_obs** (default 60.0): Number of e-folds at horizon crossing
-
-If user says "Planck compatible" or similar, use defaults. If user specifies tighter constraints (e.g., "r < 0.01"), adjust sigma accordingly.
 
 ## Operator Selection
 

@@ -62,9 +62,7 @@ class EncyclopediaRAG:
             batch_size=300,
         )
         self.embedder.dimensions = len(self.embedder.get_embedding("test"))
-        print(
-            f"[Encyclopedia] Embedding: '{embedding_model}' (dim={self.embedder.dimensions})"
-        )
+        print(f"[Encyclopedia] Embedding: '{embedding_model}' (dim={self.embedder.dimensions})")
 
         # Initialize vector database
         self.vector_db = LanceDb(
@@ -76,18 +74,12 @@ class EncyclopediaRAG:
         )
 
         # Load existing index or build new one
-        saved = (
-            json.load(open(self.config_path, encoding="utf-8"))
-            if self.config_path.exists()
-            else {}
-        )
+        saved = json.load(open(self.config_path, encoding="utf-8")) if self.config_path.exists() else {}
         count = self.vector_db.get_count()
 
         if count > 0 and saved.get("embedding_model") == embedding_model:
             self.parent_store = saved.get("parent_store", {})
-            _print(
-                f"[Encyclopedia] Loaded {count} chunks, {len(self.parent_store)} parents"
-            )
+            _print(f"[Encyclopedia] Loaded {count} chunks, {len(self.parent_store)} parents")
         else:
             if count > 0:
                 _print("[Encyclopedia] Config changed, rebuilding...")
@@ -140,25 +132,19 @@ class EncyclopediaRAG:
 
                 # Remove header line for chunking
                 lines = text.split("\n")
-                body = (
-                    "\n".join(lines[1:]).strip() if lines[0].startswith("# ") else text
-                )
+                body = "\n".join(lines[1:]).strip() if lines[0].startswith("# ") else text
 
                 for chunk in self._chunk_by_paragraphs(body):
                     all_chunks.append((chunk, parent_id))
 
             _print(f"[Index] {model_name}: {len(parents)} parent(s)")
 
-        _print(
-            f"[Index] Total: {len(all_chunks)} chunks from {len(self.parent_store)} parents"
-        )
+        _print(f"[Index] Total: {len(all_chunks)} chunks from {len(self.parent_store)} parents")
 
         # Batch embed all chunks
         _print("[Index] Batch embedding...")
         contents = [c[0] for c in all_chunks]
-        embeddings, _ = asyncio.run(
-            self.embedder.async_get_embeddings_batch_and_usage(contents)
-        )
+        embeddings, _ = asyncio.run(self.embedder.async_get_embeddings_batch_and_usage(contents))
         _print(f"[Index] Got {len(embeddings)} embeddings")
 
         # Insert into LanceDB
@@ -200,9 +186,7 @@ class EncyclopediaRAG:
 
         _print(f"[Index] Built {self.vector_db.get_count()} chunks -> {LANCEDB_DIR}/")
 
-    def _split_by_sections(
-        self, content: str, model_name: str
-    ) -> list[tuple[str, str]]:
+    def _split_by_sections(self, content: str, model_name: str) -> list[tuple[str, str]]:
         """Split markdown by H1 headers into sections."""
         sections = []
         current_lines = []
@@ -217,9 +201,7 @@ class EncyclopediaRAG:
                     if _tokens(text) > 50:
                         sections.append((current_title, text))
                 # Start new section
-                current_title = (
-                    model_name if is_first else f"{model_name} - {line[2:].strip()}"
-                )
+                current_title = model_name if is_first else f"{model_name} - {line[2:].strip()}"
                 is_first = False
                 current_lines = [line]
             else:
@@ -270,9 +252,7 @@ class EncyclopediaRAG:
 
         return chunks
 
-    def search(
-        self, query: str, num_chunks: int = 10, num_parents: int = 3
-    ) -> list[dict]:
+    def search(self, query: str, num_chunks: int = 10, num_parents: int = 3) -> list[dict]:
         """Search using Reciprocal Rank Fusion (RRF) scoring.
 
         RRF score = sum(1/(k+rank)) for each matched chunk, where k=1.
@@ -291,9 +271,7 @@ class EncyclopediaRAG:
         # Return top parents sorted by score
         ranked = sorted(scores.keys(), key=lambda p: scores[p], reverse=True)
         return [
-            {**self.parent_store[pid], "score": scores[pid]}
-            for pid in ranked[:num_parents]
-            if pid in self.parent_store
+            {**self.parent_store[pid], "score": scores[pid]} for pid in ranked[:num_parents] if pid in self.parent_store
         ]
 
 

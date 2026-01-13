@@ -230,9 +230,7 @@ def _format_tool_info(tool_name: str, args: dict) -> dict:
             "log": "",
         }
 
-    emoji, title, long_running = TOOL_DISPLAY_CONFIG.get(
-        tool_name, ("🔧", tool_name, False)
-    )
+    emoji, title, long_running = TOOL_DISPLAY_CONFIG.get(tool_name, ("🔧", tool_name, False))
     result = {"tool_name": tool_name, "title": f"{emoji} {title}", "log": ""}
     if long_running:
         result["long_running"] = True
@@ -250,8 +248,7 @@ def _extract_sr_config(config_json_str: str) -> dict:
             "r_target": config.get("r_target", 0.0),
             "r_sigma": config.get("r_sigma", 0.014),
             "N_obs": config.get("N_obs", 60.0),
-            "operators": config.get("binary_operators", [])
-            + config.get("unary_operators", []),
+            "operators": config.get("binary_operators", []) + config.get("unary_operators", []),
             "iterations": iterations,
             "populations": config.get("populations", 31),
             "estimated_time": f"~{iterations // 10} min",
@@ -312,9 +309,7 @@ class DeepInflation:
         tools_module.VERBOSE = rag_module.VERBOSE = verbose
 
         if verbose:
-            print(
-                f"[Agent] Initializing with model={model}, base_url={self._base_url or 'default'}"
-            )
+            print(f"[Agent] Initializing with model={model}, base_url={self._base_url or 'default'}")
 
         # Session state
         self.session_id = str(uuid4())
@@ -379,14 +374,10 @@ class DeepInflation:
                     if self.verbose:
                         prefix = "[Member Tool]" if is_member else "[Tool]"
                         args_str = str(tool_args)[:500]
-                        print(
-                            f"{prefix} {tool_name}\n  Input: {args_str}{'...' if len(str(tool_args)) > 500 else ''}"
-                        )
+                        print(f"{prefix} {tool_name}\n  Input: {args_str}{'...' if len(str(tool_args)) > 500 else ''}")
 
                     info = _format_tool_info(tool_name, tool_args)
-                    call_id = (
-                        f"{'member' if is_member else 'team'}_{tool_name}_{time.time()}"
-                    )
+                    call_id = f"{'member' if is_member else 'team'}_{tool_name}_{time.time()}"
                     pending_tools[call_id] = (tool_name, info, tool_args, time.time())
                     yield {
                         "type": "tool_start",
@@ -397,9 +388,7 @@ class DeepInflation:
 
                     # SR config display (member only)
                     if is_member and tool_name == "search_potential":
-                        sr_config = _extract_sr_config(
-                            tool_args.get("config_json", "{}")
-                        )
+                        sr_config = _extract_sr_config(tool_args.get("config_json", "{}"))
                         if sr_config:
                             yield {"type": "sr_config", "config": sr_config}
 
@@ -415,9 +404,7 @@ class DeepInflation:
                     # Parse success from JSON result
                     success = True
                     try:
-                        output = (
-                            json.loads(result) if isinstance(result, str) else result
-                        )
+                        output = json.loads(result) if isinstance(result, str) else result
                         if isinstance(output, dict):
                             success = output.get("success", True)
                     except (json.JSONDecodeError, TypeError):
@@ -425,11 +412,7 @@ class DeepInflation:
 
                     # Find and pop matching pending tool
                     call_id = next(
-                        (
-                            cid
-                            for cid, (name, *_) in pending_tools.items()
-                            if name == tool_name
-                        ),
+                        (cid for cid, (name, *_) in pending_tools.items() if name == tool_name),
                         None,
                     )
                     if call_id:
@@ -451,11 +434,7 @@ class DeepInflation:
                         }
 
                         # Extract plot path on success
-                        if (
-                            tool_name == "plot_potential"
-                            and isinstance(output, dict)
-                            and output.get("success")
-                        ):
+                        if tool_name == "plot_potential" and isinstance(output, dict) and output.get("success"):
                             path = output.get("plot_path")
                             if path and os.path.exists(path):
                                 self.last_plot_path = path

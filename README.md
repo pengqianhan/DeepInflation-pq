@@ -75,6 +75,11 @@ agent = DeepInflation(model="gpt-5.2")
 response = agent.run("What is ns for V = phi^2?")
 ```
 
+## Licensing
+
+- Code: MIT License (see `LICENSE`)
+- Data under `data/models/`: CC BY-NC-SA 4.0 (see `data/models/LICENSE` and `ATTRIBUTION.md`)
+
 ## Acknowledgments
 
 - [Agno](https://github.com/agno-agi/agno) — Agent framework

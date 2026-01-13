@@ -236,11 +236,10 @@ def _run_pysr(config: dict) -> dict:
     # Process constraints
     constraints = config.get("constraints")
     if constraints:
-        constraints = {k: tuple(v) if isinstance(v, list) else v for k, v in constraints.items()}
+        constraints = {
+            k: tuple(v) if isinstance(v, list) else v for k, v in constraints.items()
+        }
 
-    # Check Julia threads
-    n_threads = jl.seval("Threads.nthreads()")
-    print(f"[SR] Julia threads: {n_threads}")
     print(f"[SR] Targets: ns={ns_target}±{ns_sigma}, r={r_target}±{r_sigma}, N={N_obs}")
     print(f"[SR] Ops: {binary_ops} + {unary_ops}, maxsize={maxsize}")
     print(f"[SR] Evolution: {populations}×{population_size}, {niterations} iters")
@@ -301,7 +300,9 @@ def _run_pysr(config: dict) -> dict:
             if not obs_list:
                 continue
             obs = obs_list[0]
-            chi2 = ((obs["ns"] - ns_target) / ns_sigma) ** 2 + ((obs["r"] - r_target) / r_sigma) ** 2
+            chi2 = ((obs["ns"] - ns_target) / ns_sigma) ** 2 + (
+                (obs["r"] - r_target) / r_sigma
+            ) ** 2
             loss = chi2 / 2
             if loss <= 50.0:
                 results.append(
@@ -400,7 +401,9 @@ def search_potential(config_json: str) -> str:
     _print("[SR] Launching worker process...")
 
     ctx = mp.get_context("spawn")
-    with ProcessPoolExecutor(max_workers=1, max_tasks_per_child=1, mp_context=ctx) as executor:
+    with ProcessPoolExecutor(
+        max_workers=1, max_tasks_per_child=1, mp_context=ctx
+    ) as executor:
         future = executor.submit(_run_pysr, config)
         try:
             result = future.result(timeout=660)

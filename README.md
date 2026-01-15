@@ -1,17 +1,23 @@
 # DeepInflation
 
-AI Agent for Inflationary Cosmology Research and Model Discovery, based on [Agno](https://github.com/agno-agi/agno).
+DeepInflation is an AI Agent for Inflationary Cosmology Research and Model Discovery, built on [Agno](https://github.com/agno-agi/agno).
+
+The agent integrates symbolic regression ([PySR](https://github.com/MilesCranmer/PySR)) to discover inflationary potentials from observational constraints and a RAG knowledge base derived from [Encyclopædia Inflationaris](https://arxiv.org/abs/1303.3787) for theoretical background.
+
+![Architecture](data/architecture.png)
 
 ## Setup
 
 ### 1. Python
 
-```bash
-# pip
-pip install -r requirements.txt
+Requires Python 3.10+.
 
-# or uv
+```bash
+# uv (recommended)
 uv sync
+
+# or pip
+pip install -r requirements.txt
 ```
 
 ### 2. Julia
@@ -55,16 +61,15 @@ export BASE_URL="http://localhost:11434/v1"
 
 ## Usage
 
-### Web UI
+### Web Interface
 
 Natural language queries via the chat interface:
 
-| Query                                       | Tool                          |
-| ------------------------------------------- | ----------------------------- |
-| "What is ns for V = phi^2?"                 | `analyze_potential`           |
-| "Plot V = (1-exp(-sqrt(2/3)*phi))^2"        | `plot_potential`              |
-| "Find potentials with ns ≈ 0.965, r < 0.01" | `search_potential` (SR)       |
-| "What is Starobinsky inflation?"            | `search_knowledge_base` (RAG) |
+| Query                                       | Tool                        |
+| ------------------------------------------- | --------------------------- |
+| "What is ns for V = phi^2?"                 | `analyze_potential`         |
+| "Find potentials with ns ≈ 0.965, r < 0.01" | `search_potential` (SR)     |
+| "What is Starobinsky inflation?"            | `search_encyclopedia` (RAG) |
 
 ### Python API
 
@@ -75,13 +80,7 @@ agent = DeepInflation(model="gpt-5.2")
 response = agent.run("What is ns for V = phi^2?")
 ```
 
-## Licensing
+## License
 
-- Code: MIT License (see `LICENSE`)
-- Data under `data/models/`: CC BY-NC-SA 4.0 (see `data/models/LICENSE` and `ATTRIBUTION.md`)
-
-## Acknowledgments
-
-- [Agno](https://github.com/agno-agi/agno) — Agent framework
-- [PySR](https://github.com/MilesCranmer/PySR) — Symbolic regression
-- [Encyclopædia Inflationaris](https://arxiv.org/abs/1303.3787) — Knowledge base.
+- Code: MIT License.
+- RAG Data: The documents under `data/models/` is derived from [Encyclopædia Inflationaris](https://arxiv.org/abs/1303.3787) and licensed under CC BY-NC-SA 4.0 (see `data/models/LICENSE` and `ATTRIBUTION.md`).

@@ -12,7 +12,7 @@ import gradio as gr
 from dotenv import load_dotenv
 from gradio import ChatMessage
 
-from agent import DeepInflation
+from deepinflation.agent import DeepInflation
 
 load_dotenv()
 

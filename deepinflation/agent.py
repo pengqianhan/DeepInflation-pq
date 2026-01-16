@@ -12,9 +12,9 @@ from agno.run.agent import RunEvent
 from agno.run.team import TeamRunEvent
 from agno.team import Team
 
-from encyclopedia_rag import init_rag, search_encyclopedia
-from sr_search import search_potential
-from tools import analyze_potential, plot_potential
+from .encyclopedia_rag import init_rag, search_encyclopedia
+from .sr_search import search_potential
+from .tools import analyze_potential, plot_potential
 
 # ============================================================================
 # System Prompts
@@ -303,8 +303,8 @@ class DeepInflation:
         )
 
         # Set verbose flag for submodules
-        import encyclopedia_rag as rag_module
-        import tools as tools_module
+        from . import encyclopedia_rag as rag_module
+        from . import tools as tools_module
 
         tools_module.VERBOSE = rag_module.VERBOSE = verbose
 

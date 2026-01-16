@@ -260,19 +260,3 @@ def generate_plot_data(expression: str, phi_min: float = 0.001, phi_max: float =
     )
 
     return phi_array, V_array, eps_array, eta_array
-
-
-if __name__ == "__main__":
-    trajectories = compute_observables_all_trajectories(
-        "exp(-0.42214/phi)",
-    )
-
-    if trajectories:
-        print(f"\nFound {len(trajectories)} trajectory(ies):")
-        for traj in trajectories:
-            print(f"\nTrajectory #{traj['trajectory_id']}:")
-            print(f"  phi_end: {traj['phi_end']:.3f}")
-            for N, obs in traj["observables"].items():
-                print(f"  N={N}: phi_N={obs['phi_N']:.3f}, ns={obs['ns']:.5f}, r={obs['r']:.5f}")
-    else:
-        print("\nNo valid trajectories found!")

@@ -79,7 +79,7 @@ def setup_julia_environment() -> bool:
     print("\nCompiling custom loss function...")
     start = time.time()
     try:
-        from sr_search import JULIA_MODULE
+        from deepinflation.sr_search import JULIA_MODULE
 
         julia_code = JULIA_MODULE.format(ns_target=0.9649, ns_sigma=0.0042, r_target=0.0, r_sigma=0.014, N_obs=60.0)
         jl.seval(julia_code)

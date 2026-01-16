@@ -74,7 +74,7 @@ Natural language queries via the chat interface:
 ### Python API
 
 ```python
-from agent import DeepInflation
+from deepinflation.agent import DeepInflation
 
 agent = DeepInflation(model="gpt-5.2")
 response = agent.run("What is ns for V = phi^2?")

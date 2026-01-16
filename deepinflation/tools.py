@@ -16,10 +16,11 @@ import numpy as np
 from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
 
-from inflation import compute_observables_all_trajectories, generate_plot_data
+from .inflation import compute_observables_all_trajectories, generate_plot_data
 
 # Load BK18+Planck posterior data
-_BK18_DATA_PATH = Path("data/bk18_planck_posterior.npz")
+_PROJECT_ROOT = Path(__file__).parent.parent
+_BK18_DATA_PATH = _PROJECT_ROOT / "data/bk18_planck_posterior.npz"
 _BK18_DATA = np.load(_BK18_DATA_PATH) if _BK18_DATA_PATH.exists() else None
 
 VERBOSE = True
@@ -348,12 +349,3 @@ def plot_potential(expression: str, output_path: str = "./potential_plot.png") -
 
     except Exception as e:
         return json.dumps({"success": False, "error": f"Plot error: {e}"}, indent=2)
-
-
-if __name__ == "__main__":
-    print("Testing tools...")
-    print("=" * 60)
-    print("\n1. Analyzing V(φ) = phi^2:")
-    print(analyze_potential("phi^2"))
-    print("\n2. Plotting V(φ) = phi^2:")
-    print(plot_potential("phi^2"))

@@ -218,7 +218,7 @@ def _run_pysr(config: dict) -> dict:
 
     from pysr import PySRRegressor, jl
 
-    from inflation import compute_observables_all_trajectories
+    from .inflation import compute_observables_all_trajectories
 
     # Extract config
     binary_ops = config["binary_operators"]
@@ -267,7 +267,7 @@ def _run_pysr(config: dict) -> dict:
         "early_stop_condition": "f(loss, complexity) = (loss < 1e-4) && (complexity < 10)",
         "turbo": True,
         "bumper": True,
-        "verbosity": 1,
+        "verbosity": 1 if VERBOSE else 0,
         "progress": True,
     }
     if unary_ops:
@@ -407,18 +407,3 @@ def search_potential(config_json: str) -> str:
             return json.dumps({"success": False, "error": str(e)})
 
     return json.dumps(result, indent=2)
-
-
-# =============================================================================
-# Test
-# =============================================================================
-
-if __name__ == "__main__":
-    test_config = {
-        "binary_operators": ["+", "*", "^"],
-        "constraints": {"^": [-1, 1]},
-        "maxsize": 10,
-        "niterations": 3,
-        "populations": 5,
-    }
-    print(search_potential(json.dumps(test_config)))

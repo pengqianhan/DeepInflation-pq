@@ -17,9 +17,10 @@ from agno.knowledge.embedder.openai import OpenAIEmbedder
 from agno.vectordb.lancedb import LanceDb, SearchType
 
 # Configuration
-MODELS_DIR = "data/models"
-MODEL_LIST_PATH = "data/model_list.json"
-LANCEDB_DIR = "tmp/lancedb"
+_PROJECT_ROOT = Path(__file__).parent.parent
+MODELS_DIR = _PROJECT_ROOT / "data/models"
+MODEL_LIST_PATH = _PROJECT_ROOT / "data/model_list.json"
+LANCEDB_DIR = _PROJECT_ROOT / "tmp/lancedb"
 TABLE_NAME = "encyclopedia_chunks"
 CONFIG_FILE = "embedding_config.json"
 CHUNK_TOKENS = 500  # Small chunks for precise matching
@@ -342,24 +343,3 @@ def search_encyclopedia(query: str, top_k: int = 3) -> str:
         },
         ensure_ascii=False,
     )
-
-
-# ============================================================================
-# Test
-# ============================================================================
-
-if __name__ == "__main__":
-    from dotenv import load_dotenv
-
-    load_dotenv()
-
-    print("=" * 60)
-    print("Testing Encyclopedia RAG")
-    print("=" * 60)
-
-    rag = init_rag(os.getenv("OPENAI_API_KEY"), os.getenv("BASE_URL"))
-
-    for r in rag.search(r"V(phi) = 1-(phi/mu)^(-p)", num_chunks=12, num_parents=5):
-        print(f"[{r['title']}] score={r['score']:.3f} ")
-        print(f"  Potential: {r['metadata'].get('potential_latex', 'N/A')[:60]}...")
-        print(f"  Count: {len(r['content'])} chars")

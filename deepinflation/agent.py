@@ -65,10 +65,10 @@ Generate 3-panel diagnostic plot.
 
 ## search_encyclopedia(query, top_k=3)
 Query Encyclopædia Inflationaris (100+ inflation models).
-- **Use for**: Model names, physics background
+- **Use for**: Inflation models and physics background
 - **NOT for**: Finding models from observables → delegate to SR Agent
-- **Query format**: Plain English only (no LaTeX or math symbols)
-- **Returns**: Full model documentation including potential, parameters, and theoretical background
+- **Query format**: Plain English (no LaTeX or math symbols)
+- **Returns**: Full model documentation including potential forms and theoretical background
 - **Citation required**: When using information from this tool, cite the source
 
 # OUTPUT PRINCIPLES
@@ -290,6 +290,13 @@ class DeepInflation:
             temperature=temperature,
         )
 
+        # Set verbose flag for submodules
+        from . import encyclopedia_rag as rag_module
+        from . import sr_search as sr_module
+        from . import tools as tools_module
+
+        tools_module.VERBOSE = rag_module.VERBOSE = sr_module.VERBOSE = verbose
+
         # Initialize Encyclopedia RAG (singleton)
         init_rag(
             api_key=self._api_key,
@@ -301,12 +308,6 @@ class DeepInflation:
             db_file="tmp/agent_storage.db",
             session_table="inflation_agent_sessions",
         )
-
-        # Set verbose flag for submodules
-        from . import encyclopedia_rag as rag_module
-        from . import tools as tools_module
-
-        tools_module.VERBOSE = rag_module.VERBOSE = verbose
 
         if verbose:
             print(f"[Agent] Initializing with model={model}, base_url={self._base_url or 'default'}")

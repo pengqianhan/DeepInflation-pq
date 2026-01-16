@@ -63,7 +63,7 @@ class EncyclopediaRAG:
             batch_size=300,
         )
         self.embedder.dimensions = len(self.embedder.get_embedding("test"))
-        print(f"[Encyclopedia] Embedding: '{embedding_model}' (dim={self.embedder.dimensions})")
+        _print(f"[Encyclopedia] Embedding: '{embedding_model}' (dim={self.embedder.dimensions})")
 
         # Initialize vector database
         self.vector_db = LanceDb(
@@ -71,7 +71,6 @@ class EncyclopediaRAG:
             table_name=TABLE_NAME,
             search_type=SearchType.hybrid,
             embedder=self.embedder,
-            use_tantivy=False,  # to retrive formulas ?
         )
 
         # Load existing index or build new one

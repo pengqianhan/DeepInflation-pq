@@ -38,7 +38,7 @@ def create_agent_interface():
                     base_url=base_url,
                     model=model,
                     embedding_model=embedding_model,
-                    verbose=True,
+                    verbose=False,
                 )
             }
 

@@ -148,73 +148,412 @@ async def stream(self, question: str):
 
 ---
 
-### 📚 3. Knowledge Base - 知识库 (encyclopedia_rag.py)
+### 📚 3. Database - 对话历史管理 (SqliteDb)
 
-**功能**: 基于 **Parent Document Retrieval** 的 RAG 系统,存储 70+ 暴胀宇宙学模型文档。
+**功能**: 持久化存储对话历史,支持多轮对话上下文管理,由 Agno 框架的 `SqliteDb` 提供。
 
-#### 技术架构
+#### 初始化与配置
 
-```mermaid
-graph LR
-    A[Markdown 文档] --> B[分段处理]
-    B --> C{文档大小}
-    C -->|小于5000 tokens| D[整文档作为 Parent]
-    C -->|大于5000 tokens| E[按 H1 标题分段]
-    D --> F[切分为 500 token Chunks]
-    E --> F
-    F --> G[批量 Embedding]
-    G --> H[LanceDB 向量库]
-    H --> I[混合检索<br/>Semantic + BM25]
+**数据库创建** ([agent.py:L307-L310](file:///home/phan635/HybridAutomata/baseline_ha/DeepInflation-pq/deepinflation/agent.py#L307-L310))
+
+```python
+self._db = SqliteDb(
+    db_file="tmp/agent_storage.db",           # 数据库文件路径
+    session_table="inflation_agent_sessions",  # 会话表名
+)
 ```
 
-#### 核心类
+**传递给 Team** ([agent.py:L340](file:///home/phan635/HybridAutomata/baseline_ha/DeepInflation-pq/deepinflation/agent.py#L340))
 
-**EncyclopediaRAG** ([encyclopedia_rag.py:L42-L275](file:///home/phan635/HybridAutomata/baseline_ha/DeepInflation-pq/deepinflation/encyclopedia_rag.py#L42-L275))
+```python
+return Team(
+    name="Inflation Research Team",
+    model=self._model,
+    members=[sr_agent],
+    tools=[analyze_potential, plot_potential, search_encyclopedia],
+    instructions=MAIN_AGENT_PROMPT,
+    db=self._db,                      # ← 连接数据库
+    add_history_to_context=True,      # ← 启用历史记录
+    num_history_runs=5,                # ← 保留最近 5 轮对话
+)
+```
+
+#### 数据存储内容
+
+数据库自动保存以下内容:
+
+| 数据类型 | 说明 | 示例 |
+|---------|------|------|
+| **用户消息** | 用户的原始输入 | "What is ns for V=phi^2?" |
+| **AI 回复** | 助手的完整响应 | "对于 V=φ²,标量谱指数 ns≈0.967..." |
+| **工具调用** | 工具名称 + 参数 + 结果 | `analyze_potential("phi^2") → {...}` |
+| **系统消息** | Prompt 指令 | MAIN_AGENT_PROMPT 内容 |
+| **会话元数据** | 时间戳、session_id | `2026-02-04T17:53:30, uuid-1234...` |
+
+#### 工作流程
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant DeepInflation
+    participant Team
+    participant SqliteDb
+    
+    User->>DeepInflation: 第1次提问
+    DeepInflation->>Team: arun(question, session_id)
+    Team->>Team: 处理请求 + 调用工具
+    Team->>SqliteDb: 保存消息历史
+    Team-->>DeepInflation: 返回响应
+    
+    User->>DeepInflation: 第2次提问
+    DeepInflation->>Team: arun(question, session_id)
+    Team->>SqliteDb: 加载最近5轮历史
+    SqliteDb-->>Team: 返回历史消息
+    Team->>Team: 将历史添加到上下文
+    Team->>Team: 基于上下文处理新请求
+    Team->>SqliteDb: 保存新一轮消息
+    Team-->>DeepInflation: 返回响应
+```
+
+#### 会话管理机制
+
+**1. Session ID 生成** ([agent.py:L316](file:///home/phan635/HybridAutomata/baseline_ha/DeepInflation-pq/deepinflation/agent.py#L316))
+
+```python
+self.session_id = str(uuid4())  # 唯一会话标识符
+```
+
+**2. 使用 Session ID 查询** ([agent.py:L364](file:///home/phan635/HybridAutomata/baseline_ha/DeepInflation-pq/deepinflation/agent.py#L364))
+
+```python
+async for event in self.team.arun(
+    input=question,
+    stream=True,
+    session_id=self.session_id,  # Agno 自动加载此 session 的历史
+):
+```
+
+**3. 清空历史** ([agent.py:L475-L480](file:///home/phan635/HybridAutomata/baseline_ha/DeepInflation-pq/deepinflation/agent.py#L475-L480))
+
+```python
+def clear_history(self):
+    """生成新 session_id,开始全新对话"""
+    self.session_id = str(uuid4())  # 新会话不会加载旧历史
+    self.last_plot_path = None
+```
+
+#### 实际使用示例
+
+```python
+# 场景: 多轮对话
+
+# 第 1 轮
+user: "What is V for Starobinsky model?"
+ai: "The Starobinsky model has potential V = (1-exp(-√(2/3)φ))²"
+# → 保存到 session_A
+
+# 第 2 轮 (AI 能记住第 1 轮内容)
+user: "Calculate ns and r for it"
+ai: "For the Starobinsky model (V=(1-exp(-√(2/3)φ))²), ns≈0.965, r≈0.003"
+# → 加载 session_A 历史 + 保存新对话
+
+# 第 3 轮
+user: "Plot this potential"
+ai: [调用 plot_potential("(1-exp(-sqrt(2/3)*phi))^2")]
+# → AI 知道 "this potential" 指的是 Starobinsky 模型
+
+# 清空历史
+agent.clear_history()
+
+# 第 4 轮 (新会话)
+user: "Plot this potential"
+ai: "Which potential do you want to plot?"  # 不记得之前的对话
+```
+
+#### 数据库 vs RAG 对比
+
+| 特性 | **Database (对话历史)** | **RAG (知识库)** |
+|------|----------------------|----------------|
+| **数据来源** | 当前用户的实时对话 | 预先准备的专业文档 |
+| **存储位置** | `tmp/agent_storage.db` | `tmp/lancedb/` |
+| **加载方式** | 按 `session_id` 自动加载 | 主动调用工具检索 |
+| **更新频率** | 每次对话实时更新 | 知识库静态,启动时加载 |
+| **作用** | 记住用户对话上下文 | 提供专业物理知识 |
+| **生命周期** | 会话持久化,可跨重启 | 持久化,直到重建索引 |
+
+---
+
+### 📚 4. Knowledge Base - 知识库 (encyclopedia_rag.py)
+
+**功能**: 基于 **Parent Document Retrieval** 的 RAG (检索增强生成) 系统,存储 70+ 暴胀宇宙学模型文档,提供专业知识检索能力。
+
+#### RAG 系统架构
+
+```mermaid
+graph TB
+    A[系统启动] --> B[初始化 RAG]
+    B --> C[读取 Markdown 文档<br/>data/models/*.md]
+    C --> D{文档大小判断}
+    D -->|小于5000 tokens| E[整文档作为 Parent]
+    D -->|大于5000 tokens| F[按 H1 标题拆分成 Sections]
+    E --> G[切分为 500 token Chunks]
+    F --> G
+    G --> H[批量生成 Embeddings<br/>text-embedding-3-small]
+    H --> I[存入 LanceDB 向量库]
+    I --> J[Parent Store 字典<br/>存储完整文档]
+    
+    K[用户查询] --> L[AI 决策调用<br/>search_encyclopedia]
+    L --> M[查询向量化]
+    M --> N[LanceDB 混合检索<br/>Semantic + BM25]
+    N --> O[获取 Top-N Chunks]
+    O --> P[RRF 聚合评分]
+    P --> Q[返回 Top-3 Parent 完整文档]
+    Q --> R[AI 基于文档生成回答]
+```
+
+#### 核心类与初始化
+
+**EncyclopediaRAG 类** ([encyclopedia_rag.py:L42-L90](file:///home/phan635/HybridAutomata/baseline_ha/DeepInflation-pq/deepinflation/encyclopedia_rag.py#L42-L90))
 
 ```python
 class EncyclopediaRAG:
-    def __init__(self, api_key, base_url, embedding_model):
+    def __init__(self, api_key, base_url, embedding_model="text-embedding-3-small"):
         # 1. 初始化 OpenAI Embedder
-        self.embedder = OpenAIEmbedder(id=embedding_model, ...)
+        self.embedder = OpenAIEmbedder(
+            id=embedding_model,
+            api_key=api_key,
+            base_url=base_url,
+            enable_batch=True,      # 批量处理加速
+            batch_size=300
+        )
         
         # 2. 初始化向量数据库 (LanceDB)
         self.vector_db = LanceDb(
+            uri="tmp/lancedb",
             table_name="encyclopedia_chunks",
             search_type=SearchType.hybrid  # 混合检索: 语义 + 关键词
         )
         
-        # 3. 构建或加载索引
+        # 3. 父文档存储 (内存字典)
+        self.parent_store = {}  # parent_id -> {title, content, metadata}
+        
+        # 4. 构建或加载索引
         if not self._index_exists():
             self._build_index()
 ```
 
-#### 检索策略: Reciprocal Rank Fusion (RRF)
+#### 索引构建流程
+
+**文档切分策略** ([encyclopedia_rag.py:L92-L141](file:///home/phan635/HybridAutomata/baseline_ha/DeepInflation-pq/deepinflation/encyclopedia_rag.py#L92-L141))
+
+```python
+def _build_index(self):
+    for md_file in Path(MODELS_DIR).glob("*.md"):
+        content = md_file.read_text()
+        model_name = md_file.stem
+        
+        # 根据大小决定切分策略
+        if _tokens(content) <= 5000:
+            # 小文档: 整个作为一个 Parent
+            parents = [(model_name, content)]
+        else:
+            # 大文档: 按 H1 标题拆分成多个 Section Parents
+            parents = self._split_by_sections(content, model_name)
+        
+        # 处理每个 Parent
+        for title, text in parents:
+            parent_id = md5(title.encode()).hexdigest()[:16]
+            
+            # 存储完整 Parent 文档
+            self.parent_store[parent_id] = {
+                "title": title,
+                "content": text,  # 完整内容,用于返回
+                "metadata": {...},
+                "model": model_name
+            }
+            
+            # 将 Parent 切分成小 Chunks 用于检索
+            for chunk in self._chunk_by_paragraphs(text):
+                all_chunks.append((chunk, parent_id))
+    
+    # 批量 Embedding
+    embeddings = self.embedder.async_get_embeddings_batch(chunks)
+    
+    # 插入向量库
+    self.vector_db.table.add(data)
+```
+
+**为什么用 Parent-Chunk 策略?**
+
+| 方面 | 优势 |
+|------|------|
+| **检索精度** | 小 Chunks (500 tokens) 提高语义匹配精度 |
+| **上下文完整性** | 返回完整 Parent 文档,避免信息碎片化 |
+| **效率** | 只需对 Chunks 向量化,Parent 直接存储 |
+
+#### 检索算法: Reciprocal Rank Fusion (RRF)
 
 **`search` 方法** ([encyclopedia_rag.py:L255-L275](file:///home/phan635/HybridAutomata/baseline_ha/DeepInflation-pq/deepinflation/encyclopedia_rag.py#L255-L275))
 
 ```python
 def search(self, query: str, num_chunks=10, num_parents=3):
     """
-    1. 检索 top-10 chunks (小文本块)
-    2. 通过 RRF 算法对 parent 文档打分:
-       score(parent) = Σ 1/(rank + k)  (k=1)
-    3. 返回得分最高的 top-3 parent 完整文档
+    三步检索流程:
+    1. 向量检索 top-N chunks
+    2. RRF 算法聚合 parent 分数
+    3. 返回 top-K parent 完整文档
     """
+    # Step 1: 混合检索 (语义 + BM25)
     chunk_results = self.vector_db.search(query, limit=num_chunks)
     
-    # RRF 打分
+    # Step 2: RRF 评分聚合
     scores = {}
     for rank, doc in enumerate(chunk_results):
         parent_id = doc.meta_data["parent_id"]
+        # RRF 公式: score += 1/(k + rank), k=1
         scores[parent_id] = scores.get(parent_id, 0) + 1.0 / (rank + 2)
     
-    # 返回完整 parent 文档
-    return [self.parent_store[pid] for pid in sorted(scores, key=scores.get, reverse=True)[:num_parents]]
+    # Step 3: 返回得分最高的 parent 完整文档
+    ranked_parents = sorted(scores.keys(), key=lambda p: scores[p], reverse=True)
+    return [
+        {**self.parent_store[pid], "score": scores[pid]} 
+        for pid in ranked_parents[:num_parents]
+    ]
 ```
 
-**为什么用 Parent Document Retrieval?**
-- **检索精度**: 小 chunks 提高语义匹配精度
-- **上下文完整性**: 返回完整 parent 文档,避免信息碎片化
+**RRF 算法示例**:
+
+```
+假设检索到 10 个 chunks:
+Chunk 1 (rank=0) → Parent A: score += 1/(0+2) = 0.500
+Chunk 2 (rank=1) → Parent B: score += 1/(1+2) = 0.333
+Chunk 3 (rank=2) → Parent A: score += 1/(2+2) = 0.250  (累加!)
+Chunk 4 (rank=3) → Parent C: score += 1/(3+2) = 0.200
+...
+
+最终分数:
+Parent A: 0.500 + 0.250 = 0.750 (排名第1,多个 chunks 命中)
+Parent B: 0.333 (排名第2)
+Parent C: 0.200 (排名第3)
+
+返回: [Parent A 完整文档, Parent B 完整文档, Parent C 完整文档]
+```
+
+**RRF 的优势**: 如果一个父文档有多个 chunks 被匹配,它会积累更高分数,更有可能被选中。
+
+#### 作为工具集成到 Agent
+
+**工具注册** ([agent.py:L336](file:///home/phan635/HybridAutomata/baseline_ha/DeepInflation-pq/deepinflation/agent.py#L336))
+
+```python
+Team(
+    tools=[analyze_potential, plot_potential, search_encyclopedia],
+    # search_encyclopedia 是 RAG 工具的对外接口
+)
+```
+
+**工具函数** ([encyclopedia_rag.py:L296-L344](file:///home/phan635/HybridAutomata/baseline_ha/DeepInflation-pq/deepinflation/encyclopedia_rag.py#L296-L344))
+
+```python
+def search_encyclopedia(query: str, top_k: int = 3) -> str:
+    """
+    AI 调用此工具查询知识库
+    
+    Args:
+        query: 自然语言查询 (例如: "Starobinsky model")
+        top_k: 返回文档数量 (默认 3, 最大 5)
+    
+    Returns:
+        JSON 格式结果:
+        {
+            "success": True,
+            "count": 3,
+            "results": [
+                {
+                    "title": "Starobinsky Model",
+                    "content": "完整模型文档...",
+                    "potential_latex": "$V = (1-e^{-\\sqrt{2/3}\\phi})^2$",
+                    "parameters": "..."
+                },
+                ...
+            ]
+        }
+    """
+    results = _rag.search(query, num_chunks=4*top_k, num_parents=top_k)
+    return json.dumps({"success": True, "results": results})
+```
+
+#### 完整使用流程
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant AI_Agent
+    participant search_encyclopedia
+    participant VectorDB
+    participant ParentStore
+    
+    User->>AI_Agent: "What is Starobinsky model?"
+    AI_Agent->>AI_Agent: 分析问题:<br/>需要查询知识库
+    AI_Agent->>search_encyclopedia: query="Starobinsky model", top_k=3
+    
+    search_encyclopedia->>search_encyclopedia: 查询向量化
+    search_encyclopedia->>VectorDB: 混合检索 Top 12 chunks
+    VectorDB-->>search_encyclopedia: 返回 chunks + parent_id
+    
+    search_encyclopedia->>search_encyclopedia: RRF 聚合评分
+    Note over search_encyclopedia: 计算每个 parent 的累积分数
+    
+    search_encyclopedia->>ParentStore: 获取 Top 3 parent 完整文档
+    ParentStore-->>search_encyclopedia: 返回完整模型描述
+    
+    search_encyclopedia-->>AI_Agent: JSON 结果<br/>(title, content, potential)
+    
+    AI_Agent->>AI_Agent: 基于检索文档<br/>生成自然语言回答
+    AI_Agent-->>User: "Starobinsky 模型的势能为...<br/>该模型预测 ns≈0.965, r≈0.003<br/><br/>来源: Encyclopædia Inflationaris"
+```
+
+#### RAG 初始化时机
+
+**系统启动时初始化** ([agent.py:L300-L305](file:///home/phan635/HybridAutomata/baseline_ha/DeepInflation-pq/deepinflation/agent.py#L300-L305))
+
+```python
+class DeepInflation:
+    def __init__(self, ...):
+        # 在创建 Agent 前初始化 RAG (单例模式)
+        init_rag(
+            api_key=self._api_key,
+            base_url=self._base_url,
+            embedding_model=embedding_model
+        )
+        # RAG 初始化后,所有 Agent 都可以使用 search_encyclopedia 工具
+```
+
+#### 知识库内容
+
+| 类别 | 内容 | 来源 |
+|------|------|------|
+| **模型文档** | 70+ 个 Markdown 文件 | `data/models/*.md` |
+| **元数据** | 势能表达式、参数 | `data/model_list.json` |
+| **文献来源** | Encyclopædia Inflationaris | [arXiv:1303.3787](https://arxiv.org/abs/1303.3787) |
+
+**知识库示例文档结构**:
+
+```markdown
+# Starobinsky Model
+
+The Starobinsky model is one of the earliest and most successful...
+
+## Potential
+$V(\phi) = (1 - e^{-\sqrt{2/3}\phi})^2$
+
+## Predictions
+- Spectral index: $n_s \approx 0.965$
+- Tensor-to-scalar ratio: $r \approx 0.003$
+
+## Theoretical Background
+This model arises from $R^2$ gravity...
+```
 
 ---
 
